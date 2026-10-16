@@ -1,0 +1,67 @@
+flow: 1
+title: Clear out a camera roll
+description: Lists the photos you can delete, with the reason for each.
+summary: "List the photos you can delete, and why."
+steps:
+  - id: in
+    type: photos
+    with:
+      samples:
+        - /samples/photos/001.jpg
+        - /samples/photos/002.jpg
+        - /samples/photos/003.jpg
+        - /samples/photos/004.jpg
+        - /samples/photos/005.jpg
+        - /samples/photos/006.jpg
+        - /samples/photos/007.jpg
+        - /samples/photos/008.jpg
+        - /samples/photos/009.jpg
+        - /samples/photos/010.jpg
+        - /samples/photos/011.jpg
+        - /samples/photos/012.jpg
+        - /samples/photos/013.jpg
+        - /samples/photos/014.jpg
+        - /samples/photos/015.jpg
+        - /samples/photos/016.jpg
+        - /samples/photos/017.jpg
+        - /samples/photos/018.jpg
+        - /samples/photos/019.jpg
+        - /samples/photos/020.jpg
+        - /samples/photos/021.jpg
+        - /samples/photos/022.jpg
+        - /samples/photos/023.jpg
+  - id: eye
+    type: eye
+    uses:
+      image: in.photos
+    with:
+      fields:
+        - reason
+  - id: if
+    type: if
+    uses:
+      value: in.photos
+      test: eye.reason
+    with:
+      op: oneOf
+      operand: blurry, poor quality, taken by accident, nothing special, unusable, badly framed, too dark
+        or too bright, test shot or duplicate, nothing in it
+  - id: table
+    type: table
+    uses:
+      a: if.yes
+      b: eye.reason
+    with:
+      columns: Photo, Why it can go
+  - id: count
+    type: list
+    uses:
+      items: if.yes
+    with:
+      op: count
+  - id: tpl
+    type: template
+    uses:
+      a: count.result
+    with:
+      template: "Photos to clear out: {{a}}"

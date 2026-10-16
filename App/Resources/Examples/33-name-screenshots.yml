@@ -1,0 +1,25 @@
+flow: 1
+title: Name your screenshots
+description: Gives each new screenshot a name from what it shows, like 2026-10-14 Flight booking.png, so you can find it again. Turn it on to name the ones you take from now on.
+summary: "Each new screenshot gets a name from what it shows."
+steps:
+  - id: in
+    type: watch
+    with:
+      folder: ~/Desktop
+  - id: eye
+    type: eye
+    uses:
+      image: in.photos
+    with:
+      fields:
+        - subject
+  - id: rename
+    type: rename
+    uses:
+      files: in.photos
+      a: eye.subject
+    with:
+      pattern: "{{date}} {{a}}"
+      mode: rename
+      auto: true

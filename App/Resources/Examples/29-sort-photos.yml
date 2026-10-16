@@ -1,0 +1,41 @@
+flow: 1
+title: Sort photos into folders by type
+description: Copies your photos into a folder per kind of photo, so the selfies, receipts, and screenshots each end up in their own. Choose a folder on the Copy step, or add your own photos.
+summary: "A folder for each kind of photo."
+steps:
+  - id: in
+    type: photos
+    with:
+      samples:
+        - /samples/people/two-women-taking-selfie.jpg
+        - /samples/people/redhead-selfie-by-mural.jpg
+        - /samples/people/couple-chatting-at-cafe.jpg
+        - /samples/people/woman-looking-up-blue-sky.jpg
+        - /samples/photos/003.jpg
+        - /samples/photos/007.jpg
+        - /samples/photos/011.jpg
+        - /samples/photos/015.jpg
+        - /samples/photos/019.jpg
+        - /samples/photos/022.jpg
+  - id: eye
+    type: eye
+    uses:
+      image: in.photos
+    with:
+      fields:
+        - type
+  - id: copy
+    type: copy
+    uses:
+      files: in.photos
+      a: eye.type
+    with:
+      mode: copy
+      subfolder: "{{a}}"
+  - id: table
+    type: table
+    uses:
+      a: in.photos
+      b: eye.type
+    with:
+      columns: Photo, Type

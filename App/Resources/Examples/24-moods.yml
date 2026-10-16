@@ -1,0 +1,29 @@
+flow: 1
+title: "Read the mood on each face"
+description: "Labels the expression on each face, like happy or neutral."
+summary: "The expression on every face."
+steps:
+  - id: in
+    type: photos
+    with:
+      samples:
+        - /samples/people/two-women-laughing-with-phones.jpg
+        - /samples/people/woman-gazing-through-crowd.jpg
+        - /samples/people/woman-bucket-hat-with-phone.jpg
+        - /samples/people/woman-trenchcoat-blurred-crowd.jpg
+        - /samples/people/man-bleached-hair-smiling-at-phone.jpg
+        - /samples/people/couple-chatting-at-cafe.jpg
+        - /samples/people/woman-smiling-at-phone-dark-bg.jpg
+        - /samples/people/woman-standing-still-in-crowd.jpg
+  - id: eye
+    type: eye
+    uses:
+      image: in.photos
+    with:
+      fields:
+        - expression
+  - id: show
+    type: gallery
+    uses:
+      photos: in.photos
+      captions: eye.expression

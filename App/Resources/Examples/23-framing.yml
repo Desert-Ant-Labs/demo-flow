@@ -1,0 +1,30 @@
+flow: 1
+title: "Label close-ups and wide shots"
+description: "Labels how each photo is framed: close-up, medium, or wide."
+summary: "Close-up, medium, or wide for every photo."
+steps:
+  - id: in
+    type: photos
+    with:
+      samples:
+        - /samples/people/man-bleached-hair-smiling-at-phone.jpg
+        - /samples/people/three-friends-sunset-palms.jpg
+        - /samples/people/woman-standing-still-in-crowd.jpg
+        - /samples/people/person-on-checkered-floor-crowd.jpg
+        - /samples/people/woman-smiling-at-phone-dark-bg.jpg
+        - /samples/people/two-friends-city-walk-winter.jpg
+        - /samples/people/redhead-with-phone-closeup.jpg
+        - /samples/people/silhouettes-at-window-table.jpg
+        - /samples/people/woman-trenchcoat-blurred-crowd.jpg
+  - id: eye
+    type: eye
+    uses:
+      image: in.photos
+    with:
+      fields:
+        - shot
+  - id: show
+    type: gallery
+    uses:
+      photos: in.photos
+      captions: eye.shot

@@ -1,0 +1,45 @@
+flow: 1
+title: "Rank portraits by how good they look"
+description: "Ranks your photos by how good they look and shows the top three."
+summary: "The three best-looking photos."
+steps:
+  - id: in
+    type: photos
+    with:
+      samples:
+        - /samples/people/woman-hand-reaching-toward-camera.jpg
+        - /samples/people/woman-yellow-jacket-with-phone.jpg
+        - /samples/people/couple-chatting-at-cafe.jpg
+        - /samples/people/two-people-chatting-against-sky.jpg
+        - /samples/people/two-people-in-soft-light.jpg
+        - /samples/people/woman-smiling-at-phone-dark-bg.jpg
+        - /samples/people/silhouettes-at-window-table.jpg
+        - /samples/people/woman-in-busy-restaurant.jpg
+        - /samples/people/man-bleached-hair-smiling-at-phone.jpg
+        - /samples/people/young-man-golden-hour-backlight.jpg
+  - id: eye
+    type: eye
+    uses:
+      image: in.photos
+    with:
+      fields:
+        - aesthetic
+  - id: table
+    type: table
+    uses:
+      a: in.photos
+      b: eye.aesthetic
+    with:
+      columns: Photo, Looks good
+  - id: rank
+    type: list
+    uses:
+      items: in.photos
+      by: eye.aesthetic
+    with:
+      op: desc
+      n: 3
+  - id: show
+    type: gallery
+    uses:
+      photos: rank.result

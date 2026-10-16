@@ -1,0 +1,32 @@
+flow: 1
+title: Tag photos for search
+description: Eye tags what is in each photo, so you can search for it later. Add your own photos to try it.
+summary: "Search tags for every photo."
+steps:
+  - id: in
+    type: photos
+    with:
+      samples:
+        - /samples/people/two-women-taking-selfie.jpg
+        - /samples/people/couple-chatting-at-cafe.jpg
+        - /samples/people/woman-looking-up-blue-sky.jpg
+        - /samples/people/redhead-selfie-by-mural.jpg
+        - /samples/people/woman-still-in-crosswalk-blur.jpg
+        - /samples/photos/001.jpg
+        - /samples/photos/002.jpg
+        - /samples/photos/003.jpg
+        - /samples/photos/004.jpg
+        - /samples/photos/005.jpg
+        - /samples/photos/006.jpg
+  - id: eye
+    type: eye
+    uses:
+      image: in.photos
+    with:
+      fields:
+        - scenes
+  - id: gal
+    type: gallery
+    uses:
+      photos: in.photos
+      captions: eye.scenes

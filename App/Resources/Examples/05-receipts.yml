@@ -1,0 +1,63 @@
+flow: 1
+title: Find the receipts for an expense report
+description: Finds the receipts among your photos for an expense report. Add your own photos to try it.
+summary: "Find and count the receipts in a phone's photos."
+steps:
+  - id: in
+    type: photos
+    with:
+      samples:
+        - /samples/photos/001.jpg
+        - /samples/photos/002.jpg
+        - /samples/photos/003.jpg
+        - /samples/photos/004.jpg
+        - /samples/photos/005.jpg
+        - /samples/photos/006.jpg
+        - /samples/photos/007.jpg
+        - /samples/photos/008.jpg
+        - /samples/photos/009.jpg
+        - /samples/photos/010.jpg
+        - /samples/photos/011.jpg
+        - /samples/photos/012.jpg
+        - /samples/photos/013.jpg
+        - /samples/photos/014.jpg
+        - /samples/photos/015.jpg
+        - /samples/photos/016.jpg
+        - /samples/photos/017.jpg
+        - /samples/photos/018.jpg
+        - /samples/photos/019.jpg
+        - /samples/photos/020.jpg
+        - /samples/photos/021.jpg
+        - /samples/photos/022.jpg
+        - /samples/photos/023.jpg
+  - id: eye
+    type: eye
+    uses:
+      image: in.photos
+    with:
+      fields:
+        - type
+  - id: if
+    type: if
+    uses:
+      value: in.photos
+      test: eye.type
+    with:
+      op: equals
+      operand: receipt
+  - id: table
+    type: gallery
+    uses:
+      photos: if.yes
+  - id: count
+    type: list
+    uses:
+      items: if.yes
+    with:
+      op: count
+  - id: tpl
+    type: template
+    uses:
+      a: count.result
+    with:
+      template: "{{a}} receipts for the expense report"

@@ -1,0 +1,5 @@
+module WebRTCEchoCancel {
+    header "echo_cancel.h"
+    link "c++"
+    export *
+}

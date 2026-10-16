@@ -1,0 +1,58 @@
+flow: 1
+title: File the receipts from your photos
+description: Finds the receipts among your photos, names each one by its date, and copies them into a folder for your expense report. Choose a folder on the Rename step, or add your own photos.
+summary: "Find the receipts, name them by date, and file them."
+steps:
+  - id: in
+    type: photos
+    with:
+      samples:
+        - /samples/photos/001.jpg
+        - /samples/photos/002.jpg
+        - /samples/photos/003.jpg
+        - /samples/photos/004.jpg
+        - /samples/photos/005.jpg
+        - /samples/photos/006.jpg
+        - /samples/photos/007.jpg
+        - /samples/photos/008.jpg
+        - /samples/photos/009.jpg
+        - /samples/photos/010.jpg
+        - /samples/photos/011.jpg
+        - /samples/photos/012.jpg
+        - /samples/photos/013.jpg
+        - /samples/photos/014.jpg
+        - /samples/photos/015.jpg
+        - /samples/photos/016.jpg
+        - /samples/photos/017.jpg
+        - /samples/photos/018.jpg
+        - /samples/photos/019.jpg
+        - /samples/photos/020.jpg
+        - /samples/photos/021.jpg
+        - /samples/photos/022.jpg
+        - /samples/photos/023.jpg
+  - id: eye
+    type: eye
+    uses:
+      image: in.photos
+    with:
+      fields:
+        - type
+  - id: if
+    type: if
+    uses:
+      value: in.photos
+      test: eye.type
+    with:
+      op: equals
+      operand: receipt
+  - id: rename
+    type: rename
+    uses:
+      files: if.yes
+    with:
+      pattern: "{{date}} receipt {{n}}"
+      mode: copy
+  - id: show
+    type: gallery
+    uses:
+      photos: if.yes

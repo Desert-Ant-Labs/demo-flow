@@ -1,0 +1,176 @@
+name: Flow
+options:
+  bundleIdPrefix: com.desertant
+  createIntermediateGroups: true
+  deploymentTarget:
+    macOS: "26.0"
+
+# Apple Silicon only: Voz's Core ML buffers are `Float16`, a type the compiler
+# marks unavailable on x86_64 macOS.
+settings:
+  base:
+    ARCHS: arm64
+    ONLY_ACTIVE_ARCH: "NO"
+
+packages:
+  Sparkle:
+    url: https://github.com/sparkle-project/Sparkle.git
+    from: 2.10.0
+  DesertAntCore:
+    url: https://github.com/Desert-Ant-Labs/desert-ant-core.git
+    from: 4.0.0
+  DesertAntSwift:
+    url: https://github.com/Desert-Ant-Labs/desert-ant-swift.git
+    from: 2.1.3
+  Yams:
+    url: https://github.com/jpsim/Yams.git
+    from: 5.1.0
+  # WebRTC's echo canceller, built into an xcframework by its build.sh.
+  EchoCancel:
+    path: Packages/EchoCancel
+
+targets:
+  Flow:
+    type: application
+    platform: macOS
+    sources:
+      - path: App/Sources
+      - path: App/AppIcon.icon
+      - path: App/Resources/Examples
+        type: folder
+        buildPhase: resources
+      - path: App/Resources/Samples
+        type: folder
+        buildPhase: resources
+      - path: App/Resources/link-dictionary.txt
+        buildPhase: resources
+      # The notices and full license texts, for the Acknowledgements window.
+      - path: THIRD_PARTY_NOTICES.md
+        buildPhase: resources
+      - path: LICENSES
+        type: folder
+        buildPhase: resources
+    dependencies:
+      - package: DesertAntCore
+        product: Voz
+      - package: DesertAntCore
+        product: Clear
+      - package: DesertAntCore
+        product: Ear
+      - package: DesertAntCore
+        product: Redact
+      - package: DesertAntCore
+        product: Gist
+      - package: DesertAntCore
+        product: Emo
+      - package: DesertAntCore
+        product: Tongue
+      - package: DesertAntCore
+        product: Shapes
+      - package: DesertAntCore
+        product: Moderator
+      - package: DesertAntCore
+        product: Eye
+      - package: DesertAntCore
+        product: Who
+      - package: DesertAntSwift
+        product: DesertAntUI
+      - package: Yams
+      - package: Sparkle
+      - package: EchoCancel
+      - sdk: libz.tbd
+    entitlements:
+      path: App/Flow.entitlements
+      properties:
+        com.apple.security.device.audio-input: true
+        com.apple.security.personal-information.calendars: true
+    info:
+      path: App/Info.plist
+      properties:
+        CFBundleDisplayName: Desert Ant Flow
+        NSHumanReadableCopyright: © 2026 Desert Ant Labs B.V. Flow is MIT licensed. The models are under the Desert Ant Labs Source-Available License.
+        CFBundleShortVersionString: "0.0.1"
+        CFBundleVersion: "1"
+        LSMinimumSystemVersion: "26.0"
+        LSApplicationCategoryType: public.app-category.productivity
+        SUFeedURL: https://github.com/Desert-Ant-Labs/demo-flow/releases/latest/download/appcast.xml
+        SUPublicEDKey: W6J9bh7OT4fjiPjLiH3CjXMsEUK5esRKVZ/3d/hO6dY=
+        SUEnableAutomaticChecks: true
+        NSMicrophoneUsageDescription: Flow records audio for a flow to work on. The recording stays on this Mac.
+        NSCalendarsFullAccessUsageDescription: Flow reads the meeting on your calendar to title its notes. Your calendar never leaves this Mac.
+        NSPhotoLibraryUsageDescription: Flow reads the photos you choose for a flow to work on. They stay on this Mac.
+        NSNetworkVolumesUsageDescription: Flow reads the recordings and photos you add from wherever you keep them.
+        NSRemovableVolumesUsageDescription: Flow reads the recordings and photos you add from wherever you keep them.
+        NSServices:
+          - NSMenuItem:
+              default: Run Flow on Files
+            NSMessage: runFlow
+            NSPortName: Desert Ant Flow
+            NSRequiredContext: {}
+            NSSendFileTypes: [public.image, public.audio, public.audiovisual-content, public.text]
+        CFBundleURLTypes:
+          - CFBundleURLName: com.desertant.flow
+            CFBundleURLSchemes: [desertant-flow]
+        UTExportedTypeDeclarations:
+          # A step being dragged to a new place in the step list; only Flow reads it.
+          - UTTypeIdentifier: com.desertant.flow.step
+            UTTypeDescription: Desert Ant Flow step
+            UTTypeConformsTo: [public.data]
+          - UTTypeIdentifier: com.desertant.flow
+            UTTypeDescription: Desert Ant Flow
+            UTTypeConformsTo: [public.yaml, public.text]
+            UTTypeTagSpecification:
+              public.filename-extension: [flow]
+              public.mime-type: [application/x-desert-ant-flow]
+        CFBundleDocumentTypes:
+          - CFBundleTypeName: Desert Ant Flow
+            CFBundleTypeRole: Editor
+            LSHandlerRank: Owner
+            LSItemContentTypes: [com.desertant.flow]
+          - CFBundleTypeName: YAML flow
+            CFBundleTypeRole: Editor
+            LSHandlerRank: Alternate
+            LSItemContentTypes: [public.yaml]
+    settings:
+      base:
+        MACOSX_DEPLOYMENT_TARGET: "26.0"
+        PRODUCT_BUNDLE_IDENTIFIER: com.desertant.flow
+        PRODUCT_NAME: Desert Ant Flow
+        PRODUCT_MODULE_NAME: Flow
+        SWIFT_VERSION: "6.0"
+        CODE_SIGN_STYLE: Automatic
+        ENABLE_PREVIEWS: "YES"
+        ENABLE_HARDENED_RUNTIME: "YES"
+        COMBINE_HIDPI_IMAGES: "YES"
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+
+  FlowTests:
+    type: bundle.unit-test
+    platform: macOS
+    sources:
+      - path: Tests
+    dependencies:
+      - target: Flow
+    settings:
+      base:
+        MACOSX_DEPLOYMENT_TARGET: "26.0"
+        PRODUCT_BUNDLE_IDENTIFIER: com.desertant.flow.tests
+        SWIFT_VERSION: "6.0"
+        GENERATE_INFOPLIST_FILE: "YES"
+        TEST_HOST: $(BUILT_PRODUCTS_DIR)/Desert Ant Flow.app/Contents/MacOS/Desert Ant Flow
+        BUNDLE_LOADER: $(TEST_HOST)
+
+# Run is Release: the models are slow enough in a debug build to change how
+# the app feels.
+schemes:
+  Flow:
+    build:
+      targets:
+        Flow: all
+    run:
+      config: Release
+    test:
+      config: Debug
+      targets: [FlowTests]
+    archive:
+      config: Release

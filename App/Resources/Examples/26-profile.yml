@@ -1,0 +1,48 @@
+flow: 1
+title: "Pick a profile photo"
+description: "Picks the photo that works best as a profile picture, leaving out any with closed eyes."
+summary: "The best profile picture from a set."
+steps:
+  - id: in
+    type: photos
+    with:
+      samples:
+        - /samples/people/redhead-selfie-by-mural.jpg
+        - /samples/people/redhead-selfie-graffiti-wall.jpg
+        - /samples/people/redhead-with-phone-closeup.jpg
+        - /samples/people/woman-brown-coat-taking-selfie.jpg
+        - /samples/people/woman-bucket-hat-with-phone.jpg
+        - /samples/people/woman-long-hair-smiling-at-cafe.jpg
+  - id: eye
+    type: eye
+    uses:
+      image: in.photos
+    with:
+      fields:
+        - eyesOpen
+        - cover
+  - id: if
+    type: if
+    uses:
+      value: in.photos
+      test: eye.eyesOpen
+    with:
+      op: above
+      operand: "0.5"
+  - id: table
+    type: table
+    uses:
+      a: in.photos
+      b: eye.eyesOpen
+      c: eye.cover
+    with:
+      columns: Photo, Eyes open, Profile score
+  - id: best
+    type: best
+    uses:
+      items: if.yes
+      scores: eye.cover
+  - id: show
+    type: view
+    uses:
+      value: best.best

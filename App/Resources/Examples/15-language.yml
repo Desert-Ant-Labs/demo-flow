@@ -1,0 +1,23 @@
+flow: 1
+title: Hear the language of a recording
+description: Names the language of a recording.
+summary: "Name the language of a recording."
+steps:
+  - id: in
+    type: audio
+    with:
+      sample: /samples/ant-ventures.wav
+  - id: ear
+    type: ear
+    uses:
+      audio: in.audio
+  - id: tpl
+    type: template
+    uses:
+      a: ear.language
+    with:
+      template: Spoken in {{a|lang}}
+  - id: show
+    type: view
+    uses:
+      value: tpl.text

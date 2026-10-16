@@ -1,0 +1,70 @@
+flow: 1
+title: Triage a support inbox
+description: Takes the personal data out of support tickets, then drafts a reply or sends each
+  ticket to the team that speaks its language.
+summary: "Mask personal data, then reply or route each ticket by language."
+steps:
+  - id: in
+    type: textlist
+    with:
+      items:
+        - Hi, I'm Sarah Collins. My card ending 4417 was charged twice for order 88213. Please call
+          me at +1 312 555 0187.
+        - Hola, soy Javier Morales. No puedo entrar en mi cuenta desde ayer. Mi correo es
+          javi.morales@example.com
+        - The new dark mode looks great, thanks team!
+        - Bonjour, je suis Claire Dubois. Ma livraison n'est jamais arrivée au 12 rue des Lilas à
+          Lyon.
+        - Could you add an export to PDF? We would pay for it. Tom at Brightline Studio
+        - Hallo, hier ist Jonas Becker. Die App stürzt ab, wenn ich Fotos hochlade.
+        - My package never arrived and nobody answers my emails. Order 77120, Mike Reyes,
+          mike.reyes@example.com
+  - id: redact
+    type: redact
+    uses:
+      text: in.items
+  - id: tongue
+    type: tongue
+    uses:
+      text: in.items
+  - id: if
+    type: if
+    uses:
+      value: redact.text
+      test: tongue.language
+    with:
+      op: equals
+      operand: en
+  - id: emo
+    type: emo
+    uses:
+      text: if.yes
+    with:
+      limit: 2
+  - id: route
+    type: template
+    uses:
+      a: if.no
+      b: tongue.language
+    with:
+      template: Send to the {{b|lang}} team
+  - id: reply
+    type: template
+    uses:
+      a: if.yes
+      b: emo.emoji
+    with:
+      template: Reply {{b}}
+  - id: merge
+    type: merge
+    uses:
+      a: reply.text
+      b: route.text
+  - id: table
+    type: table
+    uses:
+      a: redact.text
+      b: tongue.language
+      c: merge.value
+    with:
+      columns: Ticket, Language, Next step

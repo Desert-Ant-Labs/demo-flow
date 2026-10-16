@@ -1,0 +1,77 @@
+[settings]
+experimental = true
+
+[tools]
+"pipx:dmgbuild" = "1.6.7"
+xcodegen = '2.45.3'
+
+[tasks.generate]
+description = 'Generate Flow.xcodeproj from project.yml'
+run = 'xcodegen generate'
+
+[tasks.xcode]
+description = 'Generate the project and open it in Xcode'
+depends = ['generate']
+run = """
+nohup "$(xcode-select -p)/../MacOS/Xcode" Flow.xcodeproj >/dev/null 2>&1 &
+echo "📂 Opening Flow.xcodeproj"
+"""
+
+[tasks.build]
+description = 'Build the app, signed with your Apple Development team or FLOW_TEAM_ID'
+depends = ['generate']
+run = '''
+set -o pipefail
+# Release rather than Debug: the models are slow enough in a debug build to
+# change how the app feels.
+ARGS=(-project Flow.xcodeproj -scheme Flow
+      -configuration Release -destination 'platform=macOS,arch=arm64'
+      -derivedDataPath build ARCHS=arm64
+      -skipPackagePluginValidation -skipMacroValidation)
+
+# A Release build has the hardened runtime, which only loads Sparkle when the
+# app and the framework are signed by the same team. Without FLOW_TEAM_ID the
+# team of the first Apple Development certificate in the keychain signs it.
+TEAM="${FLOW_TEAM_ID:-$(security find-certificate -c "Apple Development" -p 2>/dev/null \
+    | openssl x509 -noout -subject 2>/dev/null | sed -n 's/.*OU *= *\([A-Z0-9]*\).*/\1/p')}"
+if [ -n "$TEAM" ]; then
+    echo "🔏 Signing with team $TEAM"
+    ARGS+=(DEVELOPMENT_TEAM="$TEAM" CODE_SIGN_STYLE=Automatic -allowProvisioningUpdates)
+else
+    echo "🔏 No signing certificate: the app will not open. Set FLOW_TEAM_ID."
+fi
+
+xcodebuild "${ARGS[@]}" build | grep -E 'error:|warning:|BUILD' || true
+echo "📦 build/Build/Products/Release/Desert Ant Flow.app"
+'''
+
+[tasks.run]
+description = 'Build and open the app'
+depends = ['build']
+run = 'open "build/Build/Products/Release/Desert Ant Flow.app"'
+
+[tasks.test]
+description = 'Run the tests. FLOW_MODEL_TESTS=1 also runs the real models'
+depends = ['generate']
+run = """
+set -o pipefail
+# xcodebuild hands TEST_RUNNER_ variables to the tests without the prefix.
+export TEST_RUNNER_FLOW_MODEL_TESTS="${FLOW_MODEL_TESTS:-}"
+# Both suites run, and either one failing fails the task.
+status=0
+xcodebuild -project Flow.xcodeproj -scheme Flow \
+    -destination 'platform=macOS,arch=arm64' \
+    -derivedDataPath build ARCHS=arm64 \
+    -skipPackagePluginValidation -skipMacroValidation \
+    test | grep -E 'error:|Test run|Suite .* (passed|failed)|\\*\\* TEST' || status=1
+swift test --package-path Packages/EchoCancel 2>&1 | grep -E 'error:|Test run' || status=1
+exit $status
+"""
+
+[tasks.package]
+description = 'Build the app and wrap it in a disk image for someone else'
+run = 'Scripts/package.sh'
+
+[tasks.clean]
+description = 'Remove build products, the generated project, and disk images'
+run = 'rm -rf build dist Flow.xcodeproj'

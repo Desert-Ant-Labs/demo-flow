@@ -1,0 +1,41 @@
+flow: 1
+title: Take a quick note
+description: Writes down what you say into the microphone, from anywhere on your Mac with a shortcut. Keeps the words, not the recording, and saves each one in the Notes folder.
+summary: "A note from what you say, from anywhere."
+steps:
+  - id: in
+    type: shortcut
+    with:
+      takes: voice
+      keys:
+        code: 45
+        key: N
+        command: true
+        option: true
+      fields:
+        - text
+        - title
+  - id: gist
+    type: gist
+    uses:
+      text: in.text
+  - id: notes
+    type: template
+    uses:
+      a: in.title
+      b: in.text
+      c: gist.top
+    with:
+      template: "# {{a}}\n\n{{date}} at {{time}} · {{c}}\n\n{{b}}"
+  - id: save
+    type: folder
+    uses:
+      value: notes.text
+      a: in.title
+    with:
+      folder: Notes
+      name: "{{date}} {{a}}"
+  - id: show
+    type: view
+    uses:
+      value: notes.text

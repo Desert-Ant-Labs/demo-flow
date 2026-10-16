@@ -1,0 +1,41 @@
+flow: 1
+title: Pick the keeper from a burst
+description: Picks the best photo from a set. Add your own burst to try it.
+summary: "Keep the best photo from a set."
+steps:
+  - id: in
+    type: photos
+    with:
+      samples:
+        - /samples/people/two-women-taking-selfie.jpg
+        - /samples/people/couple-chatting-at-cafe.jpg
+        - /samples/people/woman-looking-up-blue-sky.jpg
+        - /samples/people/redhead-selfie-by-mural.jpg
+        - /samples/people/woman-still-in-crosswalk-blur.jpg
+  - id: eye
+    type: eye
+    uses:
+      image: in.photos
+    with:
+      fields:
+        - keeper
+        - people
+        - smile
+        - eyesOpen
+  - id: best
+    type: best
+    uses:
+      items: in.photos
+      scores: eye.keeper
+  - id: table
+    type: table
+    uses:
+      a: in.photos
+      b: eye.keeper
+      c: eye.eyesOpen
+    with:
+      columns: Photo, Keeper score, Eyes open
+  - id: show
+    type: view
+    uses:
+      value: best.best

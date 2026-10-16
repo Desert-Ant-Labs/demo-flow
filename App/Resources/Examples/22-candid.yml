@@ -1,0 +1,39 @@
+flow: 1
+title: "Find the candid shots"
+description: "Finds the photos of people who are not posing for the camera."
+summary: "Find the photos nobody posed for."
+steps:
+  - id: in
+    type: photos
+    with:
+      samples:
+        - /samples/people/two-people-reading-book-together.jpg
+        - /samples/people/woman-trenchcoat-blurred-crowd.jpg
+        - /samples/people/woman-at-street-cafe.jpg
+        - /samples/people/two-people-on-colorful-street.jpg
+        - /samples/people/woman-on-beach-with-phone.jpg
+        - /samples/people/woman-gazing-through-crowd.jpg
+        - /samples/people/three-friends-sunset-palms.jpg
+        - /samples/people/redhead-with-phone-closeup.jpg
+        - /samples/people/woman-still-in-crosswalk-blur.jpg
+        - /samples/people/woman-long-hair-smiling-at-cafe.jpg
+  - id: eye
+    type: eye
+    uses:
+      image: in.photos
+    with:
+      fields:
+        - faces
+        - looking
+  - id: if
+    type: if
+    uses:
+      value: in.photos
+      test: eye.looking
+    with:
+      op: below
+      operand: "0.1"
+  - id: show
+    type: gallery
+    uses:
+      photos: if.yes

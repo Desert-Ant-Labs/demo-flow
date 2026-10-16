@@ -1,0 +1,31 @@
+flow: 1
+title: Clean notes from a voice memo
+description: Transcribes a voice note and masks the personal details, and gives you the recording with the room noise taken out. Record your own to try it.
+summary: "Transcribe a voice note, mask it, and clean up the audio."
+steps:
+  - id: in
+    type: audio
+    with:
+      sample: /samples/voice-memo-2.wav
+  - id: ear
+    type: ear
+    uses:
+      audio: in.audio
+  - id: voz
+    type: voz
+    uses:
+      audio: in.audio
+  - id: redact
+    type: redact
+    uses:
+      text: voz.text
+  - id: show
+    type: view
+    uses:
+      value: redact.text
+  - id: clear
+    type: clear
+    uses:
+      audio: in.audio
+    with:
+      loudness: podcast

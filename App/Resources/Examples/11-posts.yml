@@ -1,0 +1,33 @@
+flow: 1
+title: Tag a feed of posts
+description: A topic and an emoji for every post. Paste your own feed to try it.
+summary: "A topic and an emoji for every post."
+steps:
+  - id: in
+    type: textlist
+    with:
+      items:
+        - How to start a podcast with just your iPhone
+        - Five easy weeknight pasta recipes
+        - Why the ECB held rates again this month
+        - Our first week hiking the Dolomites
+        - A beginner's guide to strength training at home
+        - The best sci-fi films of the decade
+  - id: gist
+    type: gist
+    uses:
+      text: in.items
+  - id: emo
+    type: emo
+    uses:
+      text: in.items
+    with:
+      limit: 1
+  - id: table
+    type: table
+    uses:
+      a: in.items
+      b: gist.top
+      c: emo.emoji
+    with:
+      columns: Post, Topic, Emoji

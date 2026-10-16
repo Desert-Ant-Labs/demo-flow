@@ -1,0 +1,42 @@
+flow: 1
+title: "Split group photos from portraits"
+description: "Puts the photos with two or more faces in one gallery and the portraits in another."
+summary: "Group photos in one pile, portraits in another."
+steps:
+  - id: in
+    type: photos
+    with:
+      samples:
+        - /samples/people/three-friends-sunset-palms.jpg
+        - /samples/people/redhead-selfie-graffiti-wall.jpg
+        - /samples/people/two-people-on-colorful-street.jpg
+        - /samples/people/woman-bucket-hat-with-phone.jpg
+        - /samples/people/two-people-reading-book-together.jpg
+        - /samples/people/woman-yellow-jacket-with-phone.jpg
+        - /samples/people/two-women-taking-selfie.jpg
+        - /samples/people/woman-looking-up-blue-sky.jpg
+        - /samples/people/two-people-chatting-against-sky.jpg
+        - /samples/people/woman-smiling-at-phone-dark-bg.jpg
+  - id: eye
+    type: eye
+    uses:
+      image: in.photos
+    with:
+      fields:
+        - faces
+  - id: if
+    type: if
+    uses:
+      value: in.photos
+      test: eye.faces
+    with:
+      op: above
+      operand: "1"
+  - id: groups
+    type: gallery
+    uses:
+      photos: if.yes
+  - id: portraits
+    type: gallery
+    uses:
+      photos: if.no
