@@ -1,0 +1,32 @@
+flow: 1
+title: Notes from voice memos
+description: Writes down each recording added to the Voice memos folder in Documents, masks the personal details, and saves the text as a note next to your other results.
+summary: "A clean transcript of each new voice memo."
+steps:
+  - id: in
+    type: watch
+    with:
+      folder: ~/Documents/Voice memos
+      samples:
+        - /samples/voice-memo-2.wav
+      fields:
+        - audio
+  - id: voz
+    type: voz
+    uses:
+      audio: in.audio
+  - id: redact
+    type: redact
+    uses:
+      text: voz.text
+  - id: save
+    type: folder
+    uses:
+      value: redact.text
+    with:
+      folder: Voice memos
+      name: "{{date}} {{time}} voice memo"
+  - id: show
+    type: view
+    uses:
+      value: redact.text

@@ -1,0 +1,47 @@
+flow: 1
+title: Show notes from three minutes of audio
+description: Turns a recording into show notes with topics and emoji.
+summary: "Turn a recording into show notes."
+steps:
+  - id: in
+    type: audio
+    with:
+      sample: /samples/ant-ventures-3min.wav
+  - id: voz
+    type: voz
+    uses:
+      audio: in.audio
+  - id: emo
+    type: emo
+    uses:
+      text: voz.text
+    with:
+      limit: 3
+  - id: gist
+    type: gist
+    uses:
+      text: voz.sentences
+  - id: unique
+    type: list
+    uses:
+      items: gist.top
+    with:
+      op: most
+      n: 3
+  - id: notes
+    type: template
+    uses:
+      a: unique.result
+      b: voz.text
+      c: emo.emoji
+    with:
+      template: |-
+        ## {{c}} Show notes
+
+        **Topics:** {{a}}
+
+        {{b}}
+  - id: show
+    type: view
+    uses:
+      value: notes.text

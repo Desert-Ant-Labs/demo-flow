@@ -1,0 +1,40 @@
+flow: 1
+title: "Find the smiling photos"
+description: "Finds the photos where someone is smiling. Add your own photos to try it."
+summary: "Find the photos with a smile."
+steps:
+  - id: in
+    type: photos
+    with:
+      samples:
+        - /samples/people/two-women-taking-selfie.jpg
+        - /samples/people/three-friends-sunset-palms.jpg
+        - /samples/people/two-women-laughing-with-phones.jpg
+        - /samples/people/woman-gazing-through-crowd.jpg
+        - /samples/people/two-friends-at-desk-overhead.jpg
+        - /samples/people/couple-chatting-at-cafe.jpg
+        - /samples/people/woman-on-beach-with-phone.jpg
+        - /samples/people/two-women-sharing-phones-laughing.jpg
+        - /samples/people/woman-standing-still-in-crowd.jpg
+        - /samples/people/man-bleached-hair-smiling-at-phone.jpg
+        - /samples/people/woman-smiling-at-phone-dark-bg.jpg
+        - /samples/people/silhouettes-behind-glass.jpg
+  - id: eye
+    type: eye
+    uses:
+      image: in.photos
+    with:
+      fields:
+        - smile
+  - id: if
+    type: if
+    uses:
+      value: in.photos
+      test: eye.smile
+    with:
+      op: above
+      operand: "0.5"
+  - id: show
+    type: gallery
+    uses:
+      photos: if.yes

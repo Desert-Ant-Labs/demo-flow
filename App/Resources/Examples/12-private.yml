@@ -1,0 +1,57 @@
+flow: 1
+title: Read a message without exposing it
+description: Masks the personal details in a message and reads its language, topic, and tone. Edit
+  the message and the results update.
+summary: "Mask a message and read its language, topic, and tone."
+steps:
+  - id: in
+    type: text
+    with:
+      text: "Hi Marta, Dr. Daniel Ruiz here. Good news from your blood test: your cholesterol dropped a
+        lot since March, so the new diet and the morning runs are working. Call me at +1 415 555
+        0134 or email d.ruiz@example.org to book your follow-up."
+  - id: redact
+    type: redact
+    uses:
+      text: in.text
+  - id: tongue
+    type: tongue
+    uses:
+      text: in.text
+  - id: emo
+    type: emo
+    uses:
+      text: in.text
+  - id: gist
+    type: gist
+    uses:
+      text: in.text
+  - id: about
+    type: template
+    uses:
+      a: tongue.language
+      b: gist.top
+      c: emo.emoji
+    with:
+      template: |-
+        - **Language:** {{a|lang}}
+        - **Topic:** {{b}}
+        - **Tone:** {{c}}
+  - id: tpl
+    type: template
+    uses:
+      a: redact.text
+      b: about.text
+    with:
+      template: |-
+        ## The message, with private details masked
+
+        > {{a}}
+
+        {{b}}
+  - id: show
+    type: view
+    uses:
+      value: tpl.text
+    with:
+      as: markdown

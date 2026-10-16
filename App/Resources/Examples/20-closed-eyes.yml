@@ -1,0 +1,36 @@
+flow: 1
+title: "Catch the shots with closed eyes"
+description: "Finds the photos where someone has their eyes closed, so you know which to retake."
+summary: "Find the shots with closed eyes."
+steps:
+  - id: in
+    type: photos
+    with:
+      samples:
+        - /samples/people/redhead-selfie-by-mural.jpg
+        - /samples/people/redhead-selfie-graffiti-wall.jpg
+        - /samples/people/woman-bucket-hat-with-phone.jpg
+        - /samples/people/two-women-sharing-phones-laughing.jpg
+        - /samples/people/woman-selfie-european-city-dusk.jpg
+        - /samples/people/woman-yellow-jacket-with-phone.jpg
+        - /samples/people/woman-on-beach-with-phone.jpg
+        - /samples/people/two-people-on-colorful-street.jpg
+  - id: eye
+    type: eye
+    uses:
+      image: in.photos
+    with:
+      fields:
+        - eyesOpen
+  - id: if
+    type: if
+    uses:
+      value: in.photos
+      test: eye.eyesOpen
+    with:
+      op: below
+      operand: "0.2"
+  - id: show
+    type: gallery
+    uses:
+      photos: if.yes

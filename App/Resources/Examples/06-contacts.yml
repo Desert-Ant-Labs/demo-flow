@@ -1,0 +1,26 @@
+flow: 1
+title: Pull the contacts out of a voice memo
+description: Transcribes a voice note and lists the contact details in it. Record your own to try it.
+summary: "The contact details in a voice note, as a table."
+steps:
+  - id: in
+    type: audio
+    with:
+      sample: /samples/voice-memo-2.wav
+  - id: voz
+    type: voz
+    uses:
+      audio: in.audio
+  - id: redact
+    type: redact
+    uses:
+      text: voz.text
+    with:
+      fields:
+        - found
+  - id: show
+    type: view
+    uses:
+      value: redact.found
+    with:
+      as: table

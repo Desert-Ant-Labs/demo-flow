@@ -1,0 +1,955 @@
+flow: 1
+title: Triage a support inbox
+description: Takes the personal data out of support tickets, then drafts a reply or sends each
+  ticket to the team that speaks its language.
+summary: "Mask personal data, then reply or route each ticket by language."
+steps:
+  - id: in
+    type: textlist
+    with:
+      items:
+        - Hi, I'm Sarah Collins. My card ending 4417 was charged twice for order 88213. Please call
+          me at +1 312 555 0187.
+        - Hola, soy Javier Morales. No puedo entrar en mi cuenta desde ayer. Mi correo es
+          javi.morales@example.com
+        - The new dark mode looks great, thanks team!
+        - Bonjour, je suis Claire Dubois. Ma livraison n'est jamais arrivée au 12 rue des Lilas à
+          Lyon.
+        - Could you add an export to PDF? We would pay for it. Tom at Brightline Studio
+        - Hallo, hier ist Jonas Becker. Die App stürzt ab, wenn ich Fotos hochlade.
+        - My package never arrived and nobody answers my emails. Order 77120, Mike Reyes,
+          mike.reyes@example.com
+  - id: each
+    type: foreach
+    uses:
+      items: in.items
+    with:
+      mode: lines
+  - id: redact
+    type: redact
+    uses:
+      text: each.item
+  - id: tongue
+    type: tongue
+    uses:
+      text: each.item
+  - id: if
+    type: if
+    uses:
+      value: redact.text
+      test: tongue.language
+    with:
+      op: equals
+      operand: en
+  - id: emo
+    type: emo
+    uses:
+      text: if.yes
+    with:
+      limit: 2
+  - id: route
+    type: template
+    uses:
+      a: if.no
+      b: tongue.language
+    with:
+      template: Send to the {{b|lang}} team
+  - id: reply
+    type: template
+    uses:
+      a: if.yes
+      b: emo.emoji
+    with:
+      template: Reply {{b}}
+  - id: merge
+    type: merge
+    uses:
+      a: reply.text
+      b: route.text
+  - id: table
+    type: table
+    uses:
+      a: redact.text
+      b: tongue.language
+      c: merge.value
+    with:
+      columns: Ticket, Language, Next step
+
+flow: 1
+title: Rank photos for an album cover
+description: Ranks your photos by how well they would work as an album cover.
+summary: "Rank a phone's photos as album covers."
+steps:
+  - id: in
+    type: photos
+    with:
+      samples:
+        - /samples/photos/001.jpg
+        - /samples/photos/002.jpg
+        - /samples/photos/003.jpg
+        - /samples/photos/004.jpg
+        - /samples/photos/005.jpg
+        - /samples/photos/006.jpg
+        - /samples/photos/007.jpg
+        - /samples/photos/008.jpg
+        - /samples/photos/009.jpg
+        - /samples/photos/010.jpg
+        - /samples/photos/011.jpg
+        - /samples/photos/012.jpg
+        - /samples/photos/013.jpg
+        - /samples/photos/014.jpg
+        - /samples/photos/015.jpg
+        - /samples/photos/016.jpg
+        - /samples/photos/017.jpg
+        - /samples/photos/018.jpg
+        - /samples/photos/019.jpg
+        - /samples/photos/020.jpg
+        - /samples/photos/021.jpg
+        - /samples/photos/022.jpg
+        - /samples/photos/023.jpg
+  - id: each
+    type: foreach
+    uses:
+      items: in.photos
+  - id: eye
+    type: eye
+    uses:
+      image: each.item
+    with:
+      fields:
+        - type
+        - cover
+        - scenes
+  - id: if
+    type: if
+    uses:
+      value: each.item
+      test: eye.type
+    with:
+      op: oneOf
+      operand: photo, selfie
+  - id: table
+    type: table
+    uses:
+      a: each.item
+      b: eye.type
+      c: eye.cover
+    with:
+      columns: Photo, Type, Cover score
+  - id: rank
+    type: list
+    uses:
+      items: if.yes
+      by: eye.cover
+    with:
+      op: desc
+      n: 3
+  - id: show
+    type: gallery
+    uses:
+      photos: rank.result
+
+flow: 1
+title: Find the pet photos and caption them
+description: Finds the photos with an animal in them and adds emoji captions.
+summary: "Find the animal photos and caption them with emoji."
+steps:
+  - id: in
+    type: photos
+    with:
+      samples:
+        - /samples/photos/001.jpg
+        - /samples/photos/002.jpg
+        - /samples/photos/003.jpg
+        - /samples/photos/004.jpg
+        - /samples/photos/005.jpg
+        - /samples/photos/006.jpg
+        - /samples/photos/007.jpg
+        - /samples/photos/008.jpg
+        - /samples/photos/009.jpg
+        - /samples/photos/010.jpg
+        - /samples/photos/011.jpg
+        - /samples/photos/012.jpg
+        - /samples/photos/013.jpg
+        - /samples/photos/014.jpg
+        - /samples/photos/015.jpg
+        - /samples/photos/016.jpg
+        - /samples/photos/017.jpg
+        - /samples/photos/018.jpg
+        - /samples/photos/019.jpg
+        - /samples/photos/020.jpg
+        - /samples/photos/021.jpg
+        - /samples/photos/022.jpg
+        - /samples/photos/023.jpg
+  - id: each
+    type: foreach
+    uses:
+      items: in.photos
+  - id: eye
+    type: eye
+    uses:
+      image: each.item
+    with:
+      fields:
+        - animal
+        - scenes
+  - id: if
+    type: if
+    uses:
+      value: each.item
+      test: eye.animal
+    with:
+      op: truthy
+  - id: words
+    type: template
+    uses:
+      a: eye.scenes
+      b: if.yes
+    with:
+      template: "{{a}}"
+  - id: emo
+    type: emo
+    uses:
+      text: words.text
+    with:
+      limit: 3
+  - id: table
+    type: gallery
+    uses:
+      photos: if.yes
+      captions: emo.emoji
+
+flow: 1
+title: Clear out a camera roll
+description: Lists the photos you can delete, with the reason for each.
+summary: "List the photos you can delete, and why."
+steps:
+  - id: in
+    type: photos
+    with:
+      samples:
+        - /samples/photos/001.jpg
+        - /samples/photos/002.jpg
+        - /samples/photos/003.jpg
+        - /samples/photos/004.jpg
+        - /samples/photos/005.jpg
+        - /samples/photos/006.jpg
+        - /samples/photos/007.jpg
+        - /samples/photos/008.jpg
+        - /samples/photos/009.jpg
+        - /samples/photos/010.jpg
+        - /samples/photos/011.jpg
+        - /samples/photos/012.jpg
+        - /samples/photos/013.jpg
+        - /samples/photos/014.jpg
+        - /samples/photos/015.jpg
+        - /samples/photos/016.jpg
+        - /samples/photos/017.jpg
+        - /samples/photos/018.jpg
+        - /samples/photos/019.jpg
+        - /samples/photos/020.jpg
+        - /samples/photos/021.jpg
+        - /samples/photos/022.jpg
+        - /samples/photos/023.jpg
+  - id: each
+    type: foreach
+    uses:
+      items: in.photos
+  - id: eye
+    type: eye
+    uses:
+      image: each.item
+    with:
+      fields:
+        - reason
+  - id: if
+    type: if
+    uses:
+      value: each.item
+      test: eye.reason
+    with:
+      op: oneOf
+      operand: blurry, poor quality, taken by accident, nothing special, unusable, badly framed, too dark
+        or too bright, test shot or duplicate, nothing in it
+  - id: table
+    type: table
+    uses:
+      a: if.yes
+      b: eye.reason
+    with:
+      columns: Photo, Why it can go
+  - id: count
+    type: list
+    uses:
+      items: if.yes
+    with:
+      op: count
+  - id: tpl
+    type: template
+    uses:
+      a: count.result
+    with:
+      template: "{{a}} photos to clear out"
+
+flow: 1
+title: Find the receipts for an expense report
+description: Finds the receipts among your photos for an expense report. Add your own photos to try it.
+summary: "Find and count the receipts in a phone's photos."
+steps:
+  - id: in
+    type: photos
+    with:
+      samples:
+        - /samples/photos/001.jpg
+        - /samples/photos/002.jpg
+        - /samples/photos/003.jpg
+        - /samples/photos/004.jpg
+        - /samples/photos/005.jpg
+        - /samples/photos/006.jpg
+        - /samples/photos/007.jpg
+        - /samples/photos/008.jpg
+        - /samples/photos/009.jpg
+        - /samples/photos/010.jpg
+        - /samples/photos/011.jpg
+        - /samples/photos/012.jpg
+        - /samples/photos/013.jpg
+        - /samples/photos/014.jpg
+        - /samples/photos/015.jpg
+        - /samples/photos/016.jpg
+        - /samples/photos/017.jpg
+        - /samples/photos/018.jpg
+        - /samples/photos/019.jpg
+        - /samples/photos/020.jpg
+        - /samples/photos/021.jpg
+        - /samples/photos/022.jpg
+        - /samples/photos/023.jpg
+  - id: each
+    type: foreach
+    uses:
+      items: in.photos
+  - id: eye
+    type: eye
+    uses:
+      image: each.item
+    with:
+      fields:
+        - type
+  - id: if
+    type: if
+    uses:
+      value: each.item
+      test: eye.type
+    with:
+      op: equals
+      operand: receipt
+  - id: table
+    type: gallery
+    uses:
+      photos: if.yes
+  - id: count
+    type: list
+    uses:
+      items: if.yes
+    with:
+      op: count
+  - id: tpl
+    type: template
+    uses:
+      a: count.result
+    with:
+      template: "{{a}} receipts for the expense report"
+
+flow: 1
+title: Pull the contacts out of a voice memo
+description: Transcribes a voice note and lists the contact details in it. Record your own to try it.
+summary: "The contact details in a voice note, as a table."
+steps:
+  - id: in
+    type: audio
+    with:
+      sample: /samples/voice-memo-2.wav
+  - id: voz
+    type: voz
+    uses:
+      audio: in.audio
+  - id: redact
+    type: redact
+    uses:
+      text: voz.text
+    with:
+      fields:
+        - found
+  - id: show
+    type: view
+    uses:
+      value: redact.found
+    with:
+      as: table
+
+flow: 1
+title: Tag photos for search
+description: Eye tags what is in each photo, so you can search for it later. Add your own photos to try it.
+summary: "Search tags for every photo."
+steps:
+  - id: in
+    type: photos
+    with:
+      samples:
+        - /samples/two-women-taking-selfie.jpg
+        - /samples/couple-chatting-at-cafe.jpg
+        - /samples/woman-looking-up-blue-sky.jpg
+        - /samples/redhead-selfie-by-mural.jpg
+        - /samples/woman-still-in-crosswalk-blur.jpg
+        - /samples/photos/001.jpg
+        - /samples/photos/002.jpg
+        - /samples/photos/003.jpg
+        - /samples/photos/004.jpg
+        - /samples/photos/005.jpg
+        - /samples/photos/006.jpg
+  - id: each
+    type: foreach
+    uses:
+      items: in.photos
+  - id: eye
+    type: eye
+    uses:
+      image: each.item
+    with:
+      fields:
+        - scenes
+  - id: gal
+    type: gallery
+    uses:
+      photos: each.item
+      captions: eye.scenes
+
+flow: 1
+title: Pick the keeper from a burst
+description: Picks the best photo from a set. Add your own burst to try it.
+summary: "Keep the best photo from a set."
+steps:
+  - id: in
+    type: photos
+    with:
+      samples:
+        - /samples/two-women-taking-selfie.jpg
+        - /samples/couple-chatting-at-cafe.jpg
+        - /samples/woman-looking-up-blue-sky.jpg
+        - /samples/redhead-selfie-by-mural.jpg
+        - /samples/woman-still-in-crosswalk-blur.jpg
+  - id: each
+    type: foreach
+    uses:
+      items: in.photos
+  - id: eye
+    type: eye
+    uses:
+      image: each.item
+    with:
+      fields:
+        - keeper
+        - people
+        - smile
+        - eyesOpen
+  - id: best
+    type: best
+    uses:
+      items: each.item
+      scores: eye.keeper
+  - id: table
+    type: table
+    uses:
+      a: each.item
+      b: eye.keeper
+      c: eye.eyesOpen
+    with:
+      columns: Photo, Keeper score, Eyes open
+  - id: show
+    type: view
+    uses:
+      value: best.best
+
+flow: 1
+title: Show notes from three minutes of audio
+description: Turns a recording into show notes with topics and emoji.
+summary: "Turn a recording into show notes."
+steps:
+  - id: in
+    type: audio
+    with:
+      sample: /samples/ant-ventures-3min.wav
+  - id: voz
+    type: voz
+    uses:
+      audio: in.audio
+  - id: emo
+    type: emo
+    uses:
+      text: voz.text
+    with:
+      limit: 3
+  - id: each
+    type: foreach
+    uses:
+      items: voz.text
+    with:
+      mode: sentences
+  - id: gist
+    type: gist
+    uses:
+      text: each.item
+  - id: unique
+    type: list
+    uses:
+      items: gist.top
+    with:
+      op: most
+      n: 3
+  - id: notes
+    type: template
+    uses:
+      a: unique.result
+      b: voz.text
+      c: emo.emoji
+    with:
+      template: |-
+        ## {{c}} Show notes
+
+        **Topics:** {{a}}
+
+        {{b}}
+  - id: show
+    type: view
+    uses:
+      value: notes.text
+
+flow: 1
+title: Clean notes from a voice memo
+description: Transcribes a voice note and masks the personal details, and gives you the recording with the room noise taken out. Record your own to try it.
+summary: "Transcribe a voice note, mask it, and clean up the audio."
+steps:
+  - id: in
+    type: audio
+    with:
+      sample: /samples/voice-memo-2.wav
+  - id: ear
+    type: ear
+    uses:
+      audio: in.audio
+  - id: voz
+    type: voz
+    uses:
+      audio: in.audio
+  - id: redact
+    type: redact
+    uses:
+      text: voz.text
+  - id: show
+    type: view
+    uses:
+      value: redact.text
+  - id: clear
+    type: clear
+    uses:
+      audio: in.audio
+    with:
+      loudness: podcast
+
+flow: 1
+title: Tag a feed of posts
+description: A topic and an emoji for every post. Paste your own feed to try it.
+summary: "A topic and an emoji for every post."
+steps:
+  - id: in
+    type: textlist
+    with:
+      items:
+        - How to start a podcast with just your iPhone
+        - Five easy weeknight pasta recipes
+        - Why the ECB held rates again this month
+        - Our first week hiking the Dolomites
+        - A beginner's guide to strength training at home
+        - The best sci-fi films of the decade
+  - id: each
+    type: foreach
+    uses:
+      items: in.items
+    with:
+      mode: lines
+  - id: gist
+    type: gist
+    uses:
+      text: each.item
+  - id: emo
+    type: emo
+    uses:
+      text: each.item
+    with:
+      limit: 1
+  - id: table
+    type: table
+    uses:
+      a: each.item
+      b: gist.top
+      c: emo.emoji
+    with:
+      columns: Post, Topic, Emoji
+
+flow: 1
+title: Read a message without exposing it
+description: Masks the personal details in a message and reads its language, topic, and tone. Edit
+  the message and the results update.
+summary: "Mask a message and read its language, topic, and tone."
+steps:
+  - id: in
+    type: text
+    with:
+      text: "Hi Marta, Dr. Daniel Ruiz here. Good news from your blood test: your cholesterol dropped a
+        lot since March, so the new diet and the morning runs are working. Call me at +1 415 555
+        0134 or email d.ruiz@example.org to book your follow-up."
+  - id: redact
+    type: redact
+    uses:
+      text: in.text
+  - id: tongue
+    type: tongue
+    uses:
+      text: in.text
+  - id: emo
+    type: emo
+    uses:
+      text: in.text
+  - id: gist
+    type: gist
+    uses:
+      text: in.text
+  - id: about
+    type: template
+    uses:
+      a: tongue.language
+      b: gist.top
+      c: emo.emoji
+    with:
+      template: |-
+        - **Language:** {{a|lang}}
+        - **Topic:** {{b}}
+        - **Tone:** {{c}}
+  - id: tpl
+    type: template
+    uses:
+      a: redact.text
+      b: about.text
+    with:
+      template: |-
+        ## The message, with private details masked
+
+        > {{a}}
+
+        {{b}}
+  - id: show
+    type: view
+    uses:
+      value: tpl.text
+    with:
+      as: markdown
+
+flow: 1
+title: Only show safe photos
+description: Checks a photo before anyone sees it. Safe photos go on; the rest are held back.
+summary: "Hold back unsafe photos."
+steps:
+  - id: in
+    type: image
+    with:
+      sample: /samples/redhead-selfie-by-mural.jpg
+  - id: mod
+    type: moderator
+    uses:
+      image: in.image
+  - id: if
+    type: if
+    uses:
+      value: mod.image
+      test: mod.safe
+    with:
+      op: truthy
+  - id: eye
+    type: eye
+    uses:
+      image: if.yes
+  - id: held
+    type: template
+    uses:
+      a: if.no
+    with:
+      template: Held back for review
+
+flow: 1
+title: Studio sound from an echoey room
+description: Takes the echo and background noise out of a recording. Play the result, then save it.
+summary: "Take the echo and noise out of a recording."
+steps:
+  - id: in
+    type: audio
+    with:
+      sample: /samples/clear/room.wav
+  - id: clear
+    type: clear
+    uses:
+      audio: in.audio
+    with:
+      loudness: podcast
+  - id: show
+    type: view
+    uses:
+      value: clear.audio
+
+flow: 1
+title: Hear the language of a recording
+description: Names the language of a recording.
+summary: "Name the language of a recording."
+steps:
+  - id: in
+    type: audio
+    with:
+      sample: /samples/ant-ventures.wav
+  - id: ear
+    type: ear
+    uses:
+      audio: in.audio
+  - id: tpl
+    type: template
+    uses:
+      a: ear.language
+    with:
+      template: Spoken in {{a|lang}}
+  - id: show
+    type: view
+    uses:
+      value: tpl.text
+
+flow: 1
+title: Clean up a whiteboard sketch
+description: Draw on the whiteboard. Each rough stroke comes back as a clean shape.
+summary: "Rough strokes become clean shapes."
+steps:
+  - id: in
+    type: whiteboard
+    with:
+      seed:
+        - points:
+            - x: 180.5
+              y: 73.2
+            - x: 185.2
+              y: 78.8
+            - x: 189.4
+              y: 85.1
+            - x: 192.5
+              y: 92.1
+            - x: 193.8
+              y: 99.6
+            - x: 193
+              y: 107
+            - x: 190.2
+              y: 114.1
+            - x: 185.8
+              y: 120.5
+            - x: 180.3
+              y: 126.1
+            - x: 174.2
+              y: 131.1
+            - x: 167.9
+              y: 135.6
+            - x: 161.3
+              y: 139.6
+            - x: 154.5
+              y: 143.1
+            - x: 147.4
+              y: 146.1
+            - x: 139.9
+              y: 148.1
+            - x: 132.2
+              y: 149.1
+            - x: 124.5
+              y: 149.1
+            - x: 116.9
+              y: 148.2
+            - x: 109.7
+              y: 146.7
+            - x: 102.6
+              y: 145.2
+            - x: 95.5
+              y: 143.7
+            - x: 88.1
+              y: 142.5
+            - x: 80.2
+              y: 141.2
+            - x: 71.9
+              y: 139.3
+            - x: 63.7
+              y: 136.5
+            - x: 56.2
+              y: 132.3
+            - x: 50.2
+              y: 126.6
+            - x: 46.1
+              y: 119.8
+            - x: 44.4
+              y: 112.2
+            - x: 44.7
+              y: 104.4
+            - x: 46.5
+              y: 97
+            - x: 49.1
+              y: 90
+            - x: 51.9
+              y: 83.6
+            - x: 54.3
+              y: 77.5
+            - x: 56.4
+              y: 71.5
+            - x: 58.4
+              y: 65.4
+            - x: 60.8
+              y: 59.2
+            - x: 63.9
+              y: 53.1
+            - x: 68.1
+              y: 47.4
+            - x: 73.3
+              y: 42.3
+            - x: 79.4
+              y: 37.9
+            - x: 86.1
+              y: 34.2
+            - x: 93.3
+              y: 31.1
+            - x: 100.7
+              y: 28.5
+            - x: 108.5
+              y: 26.2
+            - x: 116.7
+              y: 24.5
+            - x: 125.2
+              y: 23.7
+            - x: 133.7
+              y: 24.2
+            - x: 141.9
+              y: 26.3
+            - x: 149.4
+              y: 30
+            - x: 155.7
+              y: 35.1
+            - x: 160.6
+              y: 41.2
+            - x: 164.4
+              y: 47.6
+            - x: 167.4
+              y: 53.8
+            - x: 170.4
+              y: 59.6
+            - x: 173.7
+              y: 64.9
+            - x: 177.8
+              y: 70
+            - x: 182.3
+              y: 75.4
+            - x: 186.9
+              y: 81.2
+            - x: 190.8
+              y: 87.8
+            - x: 193.2
+              y: 95
+  - id: each
+    type: foreach
+    uses:
+      items: in.strokes
+  - id: shapes
+    type: shapes
+    uses:
+      stroke: each.item
+  - id: out
+    type: cleanboard
+    uses:
+      shapes: shapes.shape
+
+flow: 1
+title: Turn a sketch into a shape
+description: Draw something rough and get back a clean shape.
+summary: "Draw something rough, get a clean shape."
+# Shown when the tldraw whiteboard is not available (16-sketch-board.yml needs it).
+fallback_for: sketch-board
+steps:
+  - id: in
+    type: sketch
+    with:
+      points:
+        - { x: 180.5, y: 73.2 }
+        - { x: 185.2, y: 78.8 }
+        - { x: 189.4, y: 85.1 }
+        - { x: 192.5, y: 92.1 }
+        - { x: 193.8, y: 99.6 }
+        - { x: 193, y: 107 }
+        - { x: 190.2, y: 114.1 }
+        - { x: 185.8, y: 120.5 }
+        - { x: 180.3, y: 126.1 }
+        - { x: 174.2, y: 131.1 }
+        - { x: 167.9, y: 135.6 }
+        - { x: 161.3, y: 139.6 }
+        - { x: 154.5, y: 143.1 }
+        - { x: 147.4, y: 146.1 }
+        - { x: 139.9, y: 148.1 }
+        - { x: 132.2, y: 149.1 }
+        - { x: 124.5, y: 149.1 }
+        - { x: 116.9, y: 148.2 }
+        - { x: 109.7, y: 146.7 }
+        - { x: 102.6, y: 145.2 }
+        - { x: 95.5, y: 143.7 }
+        - { x: 88.1, y: 142.5 }
+        - { x: 80.2, y: 141.2 }
+        - { x: 71.9, y: 139.3 }
+        - { x: 63.7, y: 136.5 }
+        - { x: 56.2, y: 132.3 }
+        - { x: 50.2, y: 126.6 }
+        - { x: 46.1, y: 119.8 }
+        - { x: 44.4, y: 112.2 }
+        - { x: 44.7, y: 104.4 }
+        - { x: 46.5, y: 97 }
+        - { x: 49.1, y: 90 }
+        - { x: 51.9, y: 83.6 }
+        - { x: 54.3, y: 77.5 }
+        - { x: 56.4, y: 71.5 }
+        - { x: 58.4, y: 65.4 }
+        - { x: 60.8, y: 59.2 }
+        - { x: 63.9, y: 53.1 }
+        - { x: 68.1, y: 47.4 }
+        - { x: 73.3, y: 42.3 }
+        - { x: 79.4, y: 37.9 }
+        - { x: 86.1, y: 34.2 }
+        - { x: 93.3, y: 31.1 }
+        - { x: 100.7, y: 28.5 }
+        - { x: 108.5, y: 26.2 }
+        - { x: 116.7, y: 24.5 }
+        - { x: 125.2, y: 23.7 }
+        - { x: 133.7, y: 24.2 }
+        - { x: 141.9, y: 26.3 }
+        - { x: 149.4, y: 30 }
+        - { x: 155.7, y: 35.1 }
+        - { x: 160.6, y: 41.2 }
+        - { x: 164.4, y: 47.6 }
+        - { x: 167.4, y: 53.8 }
+        - { x: 170.4, y: 59.6 }
+        - { x: 173.7, y: 64.9 }
+        - { x: 177.8, y: 70 }
+        - { x: 182.3, y: 75.4 }
+        - { x: 186.9, y: 81.2 }
+        - { x: 190.8, y: 87.8 }
+        - { x: 193.2, y: 95 }
+  - id: shapes
+    type: shapes
+    uses:
+      stroke: in.stroke
+  - id: show
+    type: view
+    uses:
+      value: shapes.image

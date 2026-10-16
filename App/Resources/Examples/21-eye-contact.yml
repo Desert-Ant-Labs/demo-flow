@@ -1,0 +1,38 @@
+flow: 1
+title: "Find who looks into the camera"
+description: "Finds the photos where someone looks straight into the camera."
+summary: "Find the photos with eye contact."
+steps:
+  - id: in
+    type: photos
+    with:
+      samples:
+        - /samples/people/woman-trenchcoat-blurred-crowd.jpg
+        - /samples/people/woman-on-beach-with-phone.jpg
+        - /samples/people/two-people-on-colorful-street.jpg
+        - /samples/people/woman-looking-up-blue-sky.jpg
+        - /samples/people/woman-gazing-through-crowd.jpg
+        - /samples/people/three-friends-sunset-palms.jpg
+        - /samples/people/woman-standing-still-in-crowd.jpg
+        - /samples/people/redhead-with-phone-closeup.jpg
+        - /samples/people/woman-still-in-crosswalk-blur.jpg
+        - /samples/people/two-friends-at-desk-overhead.jpg
+  - id: eye
+    type: eye
+    uses:
+      image: in.photos
+    with:
+      fields:
+        - looking
+  - id: if
+    type: if
+    uses:
+      value: in.photos
+      test: eye.looking
+    with:
+      op: above
+      operand: "0.85"
+  - id: show
+    type: gallery
+    uses:
+      photos: if.yes

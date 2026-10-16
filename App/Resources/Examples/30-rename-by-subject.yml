@@ -1,0 +1,32 @@
+flow: 1
+title: Rename photos by what is in them
+description: Names each photo by its date and what it shows, like 2026-06-14 Beach 03.jpg, so the names alone tell you what is in a folder. Add a folder of your own photos to try it.
+summary: "Photo names from their date and subject."
+steps:
+  - id: in
+    type: photos
+    with:
+      samples:
+        - /samples/photos/001.jpg
+        - /samples/photos/002.jpg
+        - /samples/photos/004.jpg
+        - /samples/photos/006.jpg
+        - /samples/photos/008.jpg
+        - /samples/photos/010.jpg
+        - /samples/photos/012.jpg
+        - /samples/photos/014.jpg
+  - id: eye
+    type: eye
+    uses:
+      image: in.photos
+    with:
+      fields:
+        - subject
+  - id: rename
+    type: rename
+    uses:
+      files: in.photos
+      a: eye.subject
+    with:
+      pattern: "{{date}} {{a}} {{n}}"
+      mode: copy

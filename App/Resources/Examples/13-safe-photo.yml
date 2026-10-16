@@ -1,0 +1,30 @@
+flow: 1
+title: Only show safe photos
+description: Checks a photo before anyone sees it. Safe photos go on; the rest are held back.
+summary: "Hold back unsafe photos."
+steps:
+  - id: in
+    type: image
+    with:
+      sample: /samples/people/redhead-selfie-by-mural.jpg
+  - id: mod
+    type: moderator
+    uses:
+      image: in.image
+  - id: if
+    type: if
+    uses:
+      value: mod.image
+      test: mod.safe
+    with:
+      op: truthy
+  - id: eye
+    type: eye
+    uses:
+      image: if.yes
+  - id: held
+    type: template
+    uses:
+      a: if.no
+    with:
+      template: Held back for review

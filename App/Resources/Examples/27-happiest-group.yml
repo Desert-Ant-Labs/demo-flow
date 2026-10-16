@@ -1,0 +1,40 @@
+flow: 1
+title: "Pick the happiest group photo"
+description: "Picks the group photo with the biggest smile."
+summary: "The group photo with the biggest smile."
+steps:
+  - id: in
+    type: photos
+    with:
+      samples:
+        - /samples/people/two-people-in-soft-light.jpg
+        - /samples/people/three-friends-sunset-palms.jpg
+        - /samples/people/two-people-chatting-against-sky.jpg
+        - /samples/people/two-people-reading-book-together.jpg
+        - /samples/people/couple-chatting-at-cafe.jpg
+        - /samples/people/two-people-with-laptop-glow.jpg
+  - id: eye
+    type: eye
+    uses:
+      image: in.photos
+    with:
+      fields:
+        - faces
+        - smile
+  - id: table
+    type: table
+    uses:
+      a: in.photos
+      b: eye.faces
+      c: eye.smile
+    with:
+      columns: Photo, Faces, Smiling
+  - id: best
+    type: best
+    uses:
+      items: in.photos
+      scores: eye.smile
+  - id: show
+    type: view
+    uses:
+      value: best.best

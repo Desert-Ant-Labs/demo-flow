@@ -1,0 +1,48 @@
+flow: 1
+title: File your receipts
+description: Finds the receipts among new photos in Downloads, names each by its date, and copies it to the Receipts folder for your expense report.
+summary: "Receipts in Downloads get filed by date."
+steps:
+  - id: in
+    type: watch
+    with:
+      folder: ~/Downloads
+      samples:
+        - /samples/photos/014.jpg
+        - /samples/photos/015.jpg
+        - /samples/photos/016.jpg
+        - /samples/photos/017.jpg
+        - /samples/photos/018.jpg
+        - /samples/photos/019.jpg
+        - /samples/photos/020.jpg
+        - /samples/photos/021.jpg
+        - /samples/photos/022.jpg
+        - /samples/photos/023.jpg
+  - id: eye
+    type: eye
+    uses:
+      image: in.photos
+    with:
+      fields:
+        - type
+  - id: if
+    type: if
+    uses:
+      value: in.photos
+      test: eye.type
+    with:
+      op: equals
+      operand: receipt
+  - id: rename
+    type: rename
+    uses:
+      files: if.yes
+    with:
+      pattern: "{{date}} receipt"
+      mode: copy
+      auto: true
+      folder: Receipts
+  - id: show
+    type: gallery
+    uses:
+      photos: if.yes

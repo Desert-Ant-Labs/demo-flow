@@ -1,0 +1,69 @@
+flow: 1
+title: Rank photos for an album cover
+description: Ranks your photos by how well they would work as an album cover.
+summary: "Rank a phone's photos as album covers."
+steps:
+  - id: in
+    type: photos
+    with:
+      samples:
+        - /samples/photos/001.jpg
+        - /samples/photos/002.jpg
+        - /samples/photos/003.jpg
+        - /samples/photos/004.jpg
+        - /samples/photos/005.jpg
+        - /samples/photos/006.jpg
+        - /samples/photos/007.jpg
+        - /samples/photos/008.jpg
+        - /samples/photos/009.jpg
+        - /samples/photos/010.jpg
+        - /samples/photos/011.jpg
+        - /samples/photos/012.jpg
+        - /samples/photos/013.jpg
+        - /samples/photos/014.jpg
+        - /samples/photos/015.jpg
+        - /samples/photos/016.jpg
+        - /samples/photos/017.jpg
+        - /samples/photos/018.jpg
+        - /samples/photos/019.jpg
+        - /samples/photos/020.jpg
+        - /samples/photos/021.jpg
+        - /samples/photos/022.jpg
+        - /samples/photos/023.jpg
+  - id: eye
+    type: eye
+    uses:
+      image: in.photos
+    with:
+      fields:
+        - type
+        - cover
+        - scenes
+  - id: if
+    type: if
+    uses:
+      value: in.photos
+      test: eye.type
+    with:
+      op: oneOf
+      operand: photo, selfie
+  - id: table
+    type: table
+    uses:
+      a: in.photos
+      b: eye.type
+      c: eye.cover
+    with:
+      columns: Photo, Type, Cover score
+  - id: rank
+    type: list
+    uses:
+      items: if.yes
+      by: eye.cover
+    with:
+      op: desc
+      n: 3
+  - id: show
+    type: gallery
+    uses:
+      photos: rank.result

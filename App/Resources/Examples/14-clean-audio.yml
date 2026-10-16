@@ -1,0 +1,19 @@
+flow: 1
+title: Studio sound from an echoey room
+description: Takes the echo and background noise out of a recording. Play the result, then save it.
+summary: "Take the echo and noise out of a recording."
+steps:
+  - id: in
+    type: audio
+    with:
+      sample: /samples/clear/room.wav
+  - id: clear
+    type: clear
+    uses:
+      audio: in.audio
+    with:
+      loudness: podcast
+  - id: show
+    type: view
+    uses:
+      value: clear.audio
