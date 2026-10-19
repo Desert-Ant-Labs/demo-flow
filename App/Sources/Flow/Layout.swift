@@ -1,4 +1,5 @@
 import CoreGraphics
+import SwiftUI
 import Foundation
 
 /// Lays a flow out left to right: a column per step depth, each column stacked
@@ -56,54 +57,97 @@ enum FlowLayout {
     }
 }
 
-/// How a wire gets from an output to an input without running behind the
-/// cards between them. Columns are centered on one line, so a wire that skips
-/// a column would otherwise cross the card in the middle of it.
+/// How a wire gets from an output to an input: a smooth curve that leaves
+/// the output and reaches the input level, as in Origami. A wire with a card
+/// in its way eases up or down to a lane past it and back, and a wire back
+/// to an earlier column runs under both of its cards.
 enum WireRoute {
     /// How far a wire keeps from a card it goes around.
     static let clearance: CGFloat = 18
+    /// How far a wire runs level out of a port before it turns.
+    static let stub: CGFloat = 24
 
-    /// The stretch a wire runs level, over or under the cards in its way.
-    struct Lane: Equatable {
-        var y: CGFloat
-        var from: CGFloat
-        var to: CGFloat
-    }
-
-    /// Where the wire from `a` to `b` passes the cards in between, or nil
-    /// when the plain curve already misses them. It goes over or under,
-    /// whichever is the shorter way round.
-    static func lane(from a: CGPoint, to b: CGPoint, around cards: [CGRect]) -> Lane? {
-        guard b.x > a.x else { return nil }
-        let boxes = cards
-            .map { $0.insetBy(dx: -clearance, dy: -clearance) }
-            .filter { $0.maxX > a.x && $0.minX < b.x && !$0.contains(a) && !$0.contains(b) }
-        let hit = boxes.filter { box in (1..<32).contains { box.contains(point(on: a, b, at: CGFloat($0) / 32)) } }
-        guard var span = hit.first else { return nil }
-        span = hit.reduce(span) { $0.union($1) }
-        // Going over one card can run into the next one along; take those in
-        // too, until the way over and the way under are both clear.
+    /// The points a wire turns at, from `a` to `b`, ends included. `spread`
+    /// moves the wire's middle stretch aside, so wires that share a gutter
+    /// run beside each other instead of on top of each other.
+    static func corners(from a: CGPoint, to b: CGPoint, source: CGRect? = nil, target: CGRect? = nil,
+                        around cards: [CGRect] = [], spread: CGFloat = 0) -> [CGPoint] {
+        guard b.x - a.x >= stub * 2 else {
+            // Back to an earlier column: out, down under both cards, and back in.
+            let bottom = max(source?.maxY ?? a.y, target?.maxY ?? b.y, a.y, b.y) + clearance + abs(spread)
+            let out = a.x + stub, back = b.x - stub
+            return [a, CGPoint(x: out, y: a.y), CGPoint(x: out, y: bottom), CGPoint(x: back, y: bottom), CGPoint(x: back, y: b.y), b]
+        }
+        let boxes = cards.map { $0.insetBy(dx: -clearance, dy: -clearance) }.filter { !$0.contains(a) && !$0.contains(b) }
+        let middle = min(max((a.x + b.x) / 2 + spread, a.x + stub), b.x - stub)
+        let plain = abs(a.y - b.y) < 1 ? [a, b] : [a, CGPoint(x: middle, y: a.y), CGPoint(x: middle, y: b.y), b]
+        guard var span = boxes.first(where: { crosses(plain, $0) }) else { return plain }
+        // Take in every card the way over or under would run into, until both are clear.
         while let more = boxes.first(where: { box in
-            !span.contains(box) && box.minX < span.maxX && box.maxX > span.minX
-                && [span.minY, span.maxY].contains { box.minY < $0 && box.maxY > $0 }
+            !span.contains(box) && box.minX < b.x && box.maxX > a.x
+                && (crosses(plain, box) || (box.minX < span.maxX && box.maxX > span.minX
+                    && [span.minY, span.maxY].contains { box.minY < $0 && box.maxY > $0 }))
         }) {
             span = span.union(more)
         }
         let over = abs(a.y - span.minY) + abs(b.y - span.minY) <= abs(a.y - span.maxY) + abs(b.y - span.maxY)
-        return Lane(y: over ? span.minY : span.maxY, from: max(a.x, span.minX), to: min(b.x, span.maxX))
+        // Headroom past the clearance, so the curve up to the lane can lean
+        // over the card's corner without touching it.
+        let headroom = clearance + abs(spread)
+        let lane = over ? span.minY - headroom : span.maxY + headroom
+        // Turn in the gutters either side of the cards in the way.
+        let up = max(a.x + min(stub, (span.minX - a.x) / 2), a.x + 1)
+        let down = min(b.x - min(stub, (b.x - span.maxX) / 2), b.x - 1)
+        return [a, CGPoint(x: up, y: a.y), CGPoint(x: up, y: lane), CGPoint(x: down, y: lane), CGPoint(x: down, y: b.y), b]
     }
 
-    /// A point on the plain wire: a curve leaving `a` and reaching `b` level.
-    static func point(on a: CGPoint, _ b: CGPoint, at t: CGFloat) -> CGPoint {
-        let (c1, c2) = controls(a, b)
-        let u = 1 - t
-        return CGPoint(x: u * u * u * a.x + 3 * u * u * t * c1.x + 3 * u * t * t * c2.x + t * t * t * b.x,
-                       y: u * u * u * a.y + 3 * u * u * t * c1.y + 3 * u * t * t * c2.y + t * t * t * b.y)
+    /// The wire through its corners as smooth curves. A straight run from
+    /// one column to the next is one curve whose pull grows with the distance
+    /// it covers; a wire around a card eases into its lane and out of it.
+    static func path(_ corners: [CGPoint]) -> Path {
+        var path = Path()
+        guard let a = corners.first, let b = corners.last else { return path }
+        path.move(to: a)
+        switch corners.count {
+        case 4:
+            let pull = max(36, min(abs(b.x - a.x) * 0.5, 220))
+            path.addCurve(to: b, control1: CGPoint(x: a.x + pull, y: a.y), control2: CGPoint(x: b.x - pull, y: b.y))
+        case 6:
+            // Out, along the lane, and back in: each end eases over as far as
+            // it climbs, within half the lane, so it never cuts a corner.
+            let up = corners[1], laneStart = corners[2], laneEnd = corners[3], down = corners[4]
+            let way: CGFloat = laneEnd.x >= laneStart.x ? 1 : -1
+            let half = abs(laneEnd.x - laneStart.x) / 2
+            let ease1 = min(abs(laneStart.y - a.y) * 0.5, half, 56), ease2 = min(abs(b.y - laneEnd.y) * 0.5, half, 56)
+            let enter = CGPoint(x: laneStart.x + way * ease1, y: laneStart.y), leave = CGPoint(x: laneEnd.x - way * ease2, y: laneEnd.y)
+            path.addCurve(to: enter, control1: up, control2: laneStart)
+            path.addLine(to: leave)
+            path.addCurve(to: b, control1: laneEnd, control2: down)
+        default:
+            for point in corners.dropFirst() { path.addLine(to: point) }
+        }
+        return path
     }
 
-    /// The control points of the plain curve from `a` to `b`.
-    static func controls(_ a: CGPoint, _ b: CGPoint) -> (CGPoint, CGPoint) {
-        let dx = max(40, abs(b.x - a.x) * 0.5)
-        return (CGPoint(x: a.x + dx, y: a.y), CGPoint(x: b.x - dx, y: b.y))
+    /// Where a wire's label goes: halfway along a straight run, or the
+    /// middle of the lane of one that goes around.
+    static func middle(_ corners: [CGPoint]) -> CGPoint {
+        guard let a = corners.first, let b = corners.last else { return .zero }
+        if corners.count == 6 {
+            return CGPoint(x: (corners[2].x + corners[3].x) / 2, y: corners[2].y)
+        }
+        return CGPoint(x: (a.x + b.x) / 2, y: (a.y + b.y) / 2)
+    }
+
+    /// About how long a wire is, for moving things along it at an even pace.
+    static func length(_ corners: [CGPoint]) -> CGFloat {
+        zip(corners, corners.dropFirst()).reduce(0) { $0 + hypot($1.1.x - $1.0.x, $1.1.y - $1.0.y) }
+    }
+
+    /// Whether the level and upright stretches through `points` cross `box`.
+    private static func crosses(_ points: [CGPoint], _ box: CGRect) -> Bool {
+        zip(points, points.dropFirst()).contains { p, q in
+            box.intersects(CGRect(x: min(p.x, q.x), y: min(p.y, q.y), width: max(abs(q.x - p.x), 0.5), height: max(abs(q.y - p.y), 0.5)))
+        }
     }
 }

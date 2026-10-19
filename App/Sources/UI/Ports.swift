@@ -32,7 +32,8 @@ struct PortsView: View {
                     HStack(spacing: 6) {
                         if i < def.inputs.count {
                             let input = def.inputs[i]
-                            PortTag(text: input.label, dashed: input.optional)
+                            PortTag(text: input.label, dashed: input.optional,
+                                    tint: actions.graph.edges.contains { $0.target == node.id && $0.targetHandle == input.id } ? Theme.wire(input.type) : nil)
                                 .overlay(alignment: .leading) {
                                     PortDot(key: .init(node: node.id, port: input.id, output: false), type: input.type,
                                             label: "\(input.label), \(actions.graph.name(of: node.id))")
@@ -52,7 +53,7 @@ struct PortsView: View {
                                     .buttonStyle(.plain)
                                     .help("Stop giving this output")
                                 } else {
-                                    PortTag(text: output.label)
+                                    PortTag(text: output.label, tint: wired.contains(output.id) ? Theme.wire(output.type) : nil)
                                 }
                             }
                             .overlay(alignment: .trailing) {
@@ -77,6 +78,8 @@ struct PortTag: View {
     let text: String
     var dashed = false
     var removable = false
+    /// The color of the wire on this port, once one is there.
+    var tint: Color? = nil
 
     var body: some View {
         HStack(spacing: 4) {
@@ -85,8 +88,9 @@ struct PortTag: View {
         }
         .font(.system(size: 11, weight: .medium))
         .padding(.horizontal, 8).padding(.vertical, 3)
-        .background(Capsule().fill(.primary.opacity(dashed ? 0.04 : 0.1)))
-        .overlay { if dashed { Capsule().strokeBorder(.primary.opacity(0.25), style: StrokeStyle(lineWidth: 1, dash: [3, 2])) } }
+        .background(Capsule().fill(tint.map { AnyShapeStyle($0.opacity(0.2)) } ?? AnyShapeStyle(.primary.opacity(dashed ? 0.04 : 0.1))))
+        .overlay { if let tint { Capsule().strokeBorder(tint.opacity(0.45), lineWidth: 1) } }
+        .overlay { if dashed && tint == nil { Capsule().strokeBorder(.primary.opacity(0.25), style: StrokeStyle(lineWidth: 1, dash: [3, 2])) } }
     }
 }
 
@@ -231,13 +235,18 @@ struct PortDot: View {
     var body: some View {
         let fit = fits()
         let wire = wired
+        // An output is a ring the wire leaves from; an input is filled once a
+        // wire brings it something, and a ring while it waits for one.
+        let filled = !key.output && wire != nil
         Circle()
-            .fill(Theme.wire(type))
-            .overlay(Circle().strokeBorder(Theme.cream, lineWidth: 2))
+            .fill(filled ? AnyShapeStyle(Theme.wire(type)) : AnyShapeStyle(Theme.canvas))
+            .overlay(Circle().strokeBorder(filled ? Theme.cream : Theme.wire(type), lineWidth: filled ? 2 : 2.5))
             .frame(width: 13, height: 13)
             .overlay { if fit == true { Circle().strokeBorder(DA.Color.accent, lineWidth: 2).frame(width: 21, height: 21) } }
+            .shadow(color: session?.snapped == key ? Theme.wire(type) : .clear, radius: 6)
             .opacity(fit == false ? 0.2 : 1)
-            .scaleEffect(hover || fit == true ? 1.35 : 1)
+            .scaleEffect(session?.snapped == key ? 1.6 : hover || fit == true ? 1.35 : 1)
+            .animation(.spring(duration: 0.25, bounce: 0.4), value: session?.snapped == key)
             .frame(width: 22, height: 22)
             .contentShape(Circle())
             .onHover { hover = $0 }
@@ -268,7 +277,7 @@ struct PortDot: View {
         DragGesture(minimumDistance: 2, coordinateSpace: .named("canvas"))
             .onChanged { g in
                 guard let session else { return }
-                let to = session.toCanvas(g.location)
+                let to = snap(session.toCanvas(g.location), in: session)
                 if session.connecting != nil {
                     session.connecting?.to = to
                 } else if key.output {
@@ -281,7 +290,10 @@ struct PortDot: View {
             }
             .onEnded { g in
                 guard let session, let c = session.connecting else { return }
-                defer { session.connecting = nil }
+                defer {
+                    session.connecting = nil
+                    session.snapped = nil
+                }
                 // Ports are in the canvas's units; letting go counts within
                 // the same distance on screen at any zoom.
                 let at = session.toCanvas(g.location)
@@ -301,6 +313,23 @@ struct PortDot: View {
                     actions.wire(edge.target, edge.targetHandle, "\(edge.source)::\(edge.sourceHandle)")
                 }
             }
+    }
+
+    /// Near an input, a wire being drawn jumps to it, ending where a wire
+    /// into that input would, so letting go shows no surprise.
+    private func snap(_ point: CGPoint, in session: FlowSession) -> CGPoint {
+        let from = session.connecting?.from.node ?? key.node
+        let near = session.ports
+            .filter { !$0.key.output && $0.key.node != from }
+            .min { hypot($0.value.x - point.x, $0.value.y - point.y) < hypot($1.value.x - point.x, $1.value.y - point.y) }
+        let target = near.flatMap { hypot($0.value.x - point.x, $0.value.y - point.y) * session.zoom < 24 ? $0 : nil }
+        if target?.key != session.snapped {
+            session.snapped = target?.key
+            // A light tap on the trackpad as the wire takes hold.
+            if target != nil { NSHapticFeedbackManager.defaultPerformer.perform(.alignment, performanceTime: .now) }
+        }
+        guard let target else { return point }
+        return CGPoint(x: target.value.x - WireLine.gap, y: target.value.y)
     }
 
     /// The wire from an output to an input, or nil, with a word on why, when

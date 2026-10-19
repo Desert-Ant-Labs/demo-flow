@@ -281,6 +281,8 @@ struct GalleryGrid: View {
 /// Plays a recording in place.
 struct AudioPlayerView: View {
     let clip: AudioClip
+    /// The waveform's height: small on a card, larger on the Results page.
+    var height: CGFloat = 28
     @State private var player = ClipPlayer()
     @State private var peaks: [Float] = []
 
@@ -298,7 +300,7 @@ struct AudioPlayerView: View {
             .accessibilityLabel(player.playing ? "Pause" : "Play")
             TimelineView(.animation(paused: !player.playing)) { _ in
                 Waveform(peaks: peaks, progress: player.progress)
-                    .frame(height: 28)
+                    .frame(height: height)
             }
             Text(String(format: "%.1fs", clip.duration)).font(.caption.monospacedDigit()).foregroundStyle(.secondary)
         }
@@ -392,7 +394,7 @@ struct Waveform: View {
 }
 
 /// A large view of a value, inside the Result step (`ResultBody`) and the
-/// results panel (`ResultsPanel`).
+/// results page (`ResultsPage`).
 struct ResultView: View {
     let value: Value?
     var mode: ValueKind = .auto

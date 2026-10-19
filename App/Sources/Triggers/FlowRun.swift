@@ -93,6 +93,15 @@ final class FlowRun: Identifiable {
 
     var progress: Double { engine?.progress ?? 0 }
 
+    /// The question the run waits on, when a step asks one.
+    var question: Question? { engine?.questions.values.min { $0.step < $1.step } }
+
+    /// Answers the run's question, from the floater, a notification, or the review window.
+    func answer(_ answer: Answer) {
+        guard let question else { return }
+        engine?.answer(question.step, answer)
+    }
+
     /// The step running now, by name.
     var step: String? {
         guard let engine, let graph, let id = engine.busy.first, let def = graph.node(id)?.def else { return nil }
@@ -101,6 +110,7 @@ final class FlowRun: Identifiable {
 
     /// What the running step is doing: a download, or which item of how many.
     var detail: String? {
+        if question != nil { return "Waiting for your answer" }
         guard let engine, let graph, let id = engine.busy.first, let def = graph.node(id)?.def else { return nil }
         let doing = activity(engine.state(id), model: def.model.map { ModelHub.shared.state($0) }, name: def.model?.info.name ?? def.title)
         return doing == "Working" ? nil : doing

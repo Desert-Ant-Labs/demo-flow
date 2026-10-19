@@ -75,12 +75,15 @@ struct FlowEditor: View {
             .overlay(alignment: .bottom) { toast }
             .overlay { if graph.nodes.isEmpty { empty } }
             .toolbar { toolbar }
+            // The results beside the flow, in a pane that resizes like any
+            // split view, so they change in sight as the flow is edited.
             .inspector(isPresented: $session.showResults) {
-                ResultsPanel(graph: graph, session: session) { n in
+                ResultsPage(graph: graph, session: session) { id in
+                    guard let n = graph.node(id) else { return }
                     session.show(n.id)
                     if session.view == .canvas { session.focus(n, arranged: graph.meta.arranged) }
                 }
-                .inspectorColumnWidth(min: 300, ideal: 380, max: 620)
+                .inspectorColumnWidth(min: 340, ideal: 480, max: 960)
             }
             .sheet(item: $session.palette) { request in
                 PaletteView(anchor: request.onlyInputs ? nil : request.after.flatMap { graph.node($0.node) } ?? anchor,
@@ -125,7 +128,28 @@ struct FlowEditor: View {
                 setUpCommands()
                 switch Snapshots.show {
                 case "results": session.showResults = true
+                case "pdf":
+                    // Writes the results' PDF into the snapshot folder once the flow has run.
+                    session.showResults = true
+                    Task {
+                        try? await Task.sleep(for: .seconds(2))
+                        while session.engine.running { try? await Task.sleep(for: .milliseconds(300)) }
+                        let report = ResultsReport(title: actions.title(), description: graph.meta.description,
+                                                   outcomes: Outcome.all(in: graph, engine: session.engine))
+                        if let pdf = try? report.pdf(), let folder = Snapshots.folder {
+                            try? FileManager.default.copyItem(at: pdf, to: folder.appending(path: pdf.lastPathComponent))
+                        }
+                    }
                 case "palette": session.palette = .init()
+                case let show? where show.hasPrefix("hover:"):
+                    // FLOW_SHOW=hover:<step id> lights a step's wires; hover:<step id>-><step id> the wire between two.
+                    let target = show.dropFirst("hover:".count)
+                    if let arrow = target.range(of: "->") {
+                        let from = String(target[..<arrow.lowerBound]), to = String(target[arrow.upperBound...])
+                        session.hover = graph.edges.first { $0.source == from && $0.target == to }.map { .wire($0.id) }
+                    } else {
+                        session.hover = .step(String(target))
+                    }
                 default: break
                 }
                 ModelHub.shared.prefetch(graph.models)
@@ -215,7 +239,7 @@ struct FlowEditor: View {
         ToolbarSpacer(.fixed, placement: .primaryAction)
         ToolbarItem(placement: .primaryAction) {
             Button { session.showResults.toggle() } label: { Label("Results", systemImage: "sidebar.right") }
-                .help("Show the results beside the flow")
+                .help(session.showResults ? "Hide the results (\u{2318}3)" : "Show the results beside the flow (\u{2318}3)")
         }
     }
 
@@ -291,6 +315,7 @@ struct FlowEditor: View {
         actions.wire = { target, handle, value in document.graph.wire(target, handle, from: value) }
         actions.move = { id, after, before in move(id, after: after, before: before) }
         actions.elseIf = { id in addElseIf(id) }
+        actions.rerun = { scheduleRun(after: .zero) }
         actions.title = { graph.meta.title.isEmpty ? autoTitle(graph) : graph.meta.title }
         actions.change = { edit in
             var g = document.graph

@@ -45,11 +45,32 @@ final class FlowSession {
     var dragging: [String: CGSize] = [:]
     var connecting: Connecting?
     var homed = false
+    /// What the pointer is over on the canvas, so the wires it concerns light up.
+    var hover: CanvasHover?
+    /// The pointer is on a wire's label, which keeps that wire lit while it is.
+    var onWireLabel = false
+    /// When each step last finished, for the canvas to show its result
+    /// travelling on along its wires.
+    var finished: [String: Date] = [:]
+    /// The input a wire being drawn has snapped to.
+    var snapped: PortKey?
     var panStart: CGSize?
     var titleSize: CGSize = .zero
     /// Set once someone pans, zooms, or moves a step. Until then the view
     /// keeps the whole flow in sight as its cards grow with results.
     var touched = false
+
+    enum CanvasHover: Equatable {
+        case wire(String)
+        case step(String)
+    }
+
+    /// Where each step's card sits, in the canvas's units.
+    func cards(of graph: Graph) -> [String: CGRect] {
+        Dictionary(uniqueKeysWithValues: graph.nodes.filter { $0.type != "note" }.map { n in
+            (n.id, CGRect(origin: position(n, arranged: graph.meta.arranged), size: sizes[n.id] ?? Self.cardSize))
+        })
+    }
 
     struct PortKey: Hashable {
         let node: String

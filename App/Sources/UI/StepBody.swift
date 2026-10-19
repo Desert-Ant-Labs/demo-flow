@@ -30,7 +30,7 @@ struct StepBody: View {
 
     nonisolated static func has(_ type: String) -> Bool {
         ["call", "watch", "schedule", "shortcut", "text", "textlist", "audio", "record", "image", "photos", "sketch", "whiteboard", "cleanboard", "if", "list",
-         "template", "join", "convert", "readtext", "table", "gallery", "view", "folder", "files", "rename", "copy", "speak", "clear", "gist", "emo",
+         "template", "join", "ask", "convert", "readtext", "table", "gallery", "view", "folder", "files", "rename", "copy", "speak", "clear", "gist", "emo",
          "moderator"].contains(type)
     }
 
@@ -98,6 +98,7 @@ struct StepBody: View {
                 }
             }
         case "list": ListBody(node: node)
+        case "ask": AskBody(node: node, state: state)
         case "template": TemplateBody(node: node)
         case "join":
             Picker("", selection: p.text("separator", "newline")) {

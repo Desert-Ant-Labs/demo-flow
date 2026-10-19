@@ -20,6 +20,8 @@ struct StepState: Sendable {
     var count: Int?
     /// Milliseconds spent in the model, or in the step when it has none.
     var ms: Double?
+    /// Waiting on someone to answer the step's question.
+    var asking = false
 }
 
 /// Runs a flow as a graph. A step runs again only when its settings or what
@@ -55,6 +57,55 @@ final class Engine {
 
     var running: Bool { !busy.isEmpty }
 
+    /// The questions steps are waiting on, by step.
+    private(set) var questions: [String: Question] = [:]
+    @ObservationIgnored private var waiting: [UUID: CheckedContinuation<Answer, Error>] = [:]
+    /// Someone has this flow open and can answer at once. A run a trigger
+    /// started has nobody watching for sure, so its questions also go to the
+    /// floater and a notification, and go on without an answer once the
+    /// step's wait is over.
+    @ObservationIgnored var attended = true
+    /// Told each time a step starts waiting on a question.
+    @ObservationIgnored var asked: ((Question) -> Void)?
+    /// Told each time a question goes, answered or not.
+    @ObservationIgnored var settled: ((Question) -> Void)?
+
+    /// Answers a step's question, which lets the step and the steps after it go on.
+    func answer(_ step: String, _ answer: Answer) {
+        guard let q = questions.removeValue(forKey: step), let c = waiting.removeValue(forKey: q.id) else { return }
+        set(step) { $0.asking = false }
+        settled?(q)
+        c.resume(returning: answer)
+    }
+
+    /// Waits for someone to answer, until the step is cancelled because what
+    /// it asked about changed or the flow closed.
+    private func wait(_ q: Question) async throws -> Answer {
+        try await withTaskCancellationHandler {
+            try await withCheckedThrowingContinuation { (c: CheckedContinuation<Answer, Error>) in
+                if Task.isCancelled { return c.resume(throwing: CancellationError()) }
+                if let old = questions[q.step] { withdraw(old) }
+                questions[q.step] = q
+                waiting[q.id] = c
+                set(q.step) { $0.asking = true }
+                asked?(q)
+            }
+        } onCancel: {
+            Task { @MainActor in self.withdraw(q) }
+        }
+    }
+
+    /// Takes back a question nobody answered, which cancels the step that asked it.
+    private func withdraw(_ q: Question) {
+        guard let c = waiting.removeValue(forKey: q.id) else { return }
+        if questions[q.step]?.id == q.id {
+            questions[q.step] = nil
+            set(q.step) { $0.asking = false }
+        }
+        settled?(q)
+        c.resume(throwing: CancellationError())
+    }
+
     /// What a step computed last, and from what. `stamp` changes whenever the
     /// outputs do, so a step downstream can tell new values from old without
     /// comparing photos or recordings.
@@ -67,6 +118,9 @@ final class Engine {
         var ms: Double?
         var note: String?
         var mayWrite: Bool
+        /// For a step that asks: what it asked about, so an answer survives
+        /// steps before it running again with the same result.
+        var asked: String? = nil
     }
 
     private struct Evaluated {
@@ -75,7 +129,16 @@ final class Engine {
     }
 
     @ObservationIgnored private var memo: [String: Memo] = [:]
-    @ObservationIgnored private var inflight: [String: (params: Params, signature: [String: Int], mayWrite: Bool, task: Task<Memo, Error>)] = [:]
+    /// A step at work, and on what.
+    private struct Inflight {
+        var params: Params
+        var signature: [String: Int]
+        var mayWrite: Bool
+        var asked: String?
+        var task: Task<Memo, Error>
+    }
+
+    @ObservationIgnored private var inflight: [String: Inflight] = [:]
     @ObservationIgnored private var generation = 0
     @ObservationIgnored private var nextStamp = 1
     /// The kinds of step it knows. A test hands it its own.
@@ -117,11 +180,14 @@ final class Engine {
             }
             return
         }
-        if force { memo.removeAll() }
+        // An answer stays while what it was about does: running again on
+        // purpose shouldn't ask what was just answered.
+        if force { memo = memo.filter { id, _ in graph.node(id).flatMap { steps[$0.type] }?.asks == true } }
         counted = Set(graph.nodes.filter { $0.type != "note" && steps[$0.type] != nil }.map(\.id))
         ModelHub.shared.prefetch(graph.models)
         let samples = graph.runsOnSamples
         let mayWrite = mayWrite
+        let attended = attended
         let byID = Dictionary(graph.nodes.map { ($0.id, $0) }, uniquingKeysWith: { a, _ in a })
         var visits: [String: Task<Evaluated, Never>] = [:]
 
@@ -172,16 +238,28 @@ final class Engine {
                 if states[id]?.status != .done { finish(id, m, inputs: inputs) }
                 return given(m)
             }
+            let asked = def.asks ? Self.fingerprint(inputs) : nil
+            if let asked, var m = memo[id], m.params == params, m.asked == asked {
+                m.signature = signature
+                memo[id] = m
+                if states[id]?.status != .done { finish(id, m, inputs: inputs) }
+                return given(m)
+            }
 
             let job: Task<Memo, Error>
-            if let running = inflight[id], same(running.params, running.signature, running.mayWrite) {
+            if let running = inflight[id],
+               same(running.params, running.signature, running.mayWrite) || (asked != nil && running.asked == asked && running.params == params) {
                 job = running.task
             } else {
                 // The step was still working on settings or inputs that have
                 // since changed. That work is stale: it must neither land after
                 // the new result nor, by failing, wipe it.
                 inflight[id]?.task.cancel()
-                let context = RunContext(id: id, samples: samples, mayWrite: mayWrite) { item, items in
+                let context = RunContext(id: id, samples: samples, mayWrite: mayWrite, attended: attended,
+                                         asker: { [weak self] q in
+                                             guard let self else { throw CancellationError() }
+                                             return try await self.wait(q)
+                                         }) { item, items in
                     Task { @MainActor in self.set(id) { $0.item = item; $0.items = items } }
                 }
                 job = Task {
@@ -191,9 +269,9 @@ final class Engine {
                     let ms = def.model == nil ? (ContinuousClock.now - started).inMilliseconds : context.ms
                     self.nextStamp += 1
                     return Memo(params: params, signature: signature, outputs: outputs, stamp: self.nextStamp,
-                                count: context.count, ms: ms, note: context.note, mayWrite: mayWrite)
+                                count: context.count, ms: ms, note: context.note, mayWrite: mayWrite, asked: asked)
                 }
-                inflight[id] = (params, signature, mayWrite, job)
+                inflight[id] = Inflight(params: params, signature: signature, mayWrite: mayWrite, asked: asked, task: job)
             }
 
             set(id) {
@@ -296,6 +374,27 @@ final class Engine {
             if case .list(let items) = outputs[port.id] { out[port.id] = .stream(items) }
         }
         return out
+    }
+
+    /// What a step was given, in enough detail to tell whether it is the same
+    /// as before without comparing every pixel or sample.
+    nonisolated static func fingerprint(_ inputs: [String: Value]) -> String {
+        func describe(_ v: Value?) -> String {
+            switch v {
+            case nil: "_"
+            case .image(let p)?: "img:\(p.file?.path ?? p.name):\(p.width)x\(p.height)"
+            case .audio(let a)?: "audio:\(a.name):\(a.samples.count)"
+            case .file(let url)?: "file:\(url.path)"
+            case .list(let l)?: "[" + l.map(describe).joined(separator: ",") + "]"
+            case .stream(let l)?: "<" + l.map(describe).joined(separator: ",") + ">"
+            case .record(let f)?: "{" + f.map { "\($0.0):\(describe($0.1))" }.joined(separator: ",") + "}"
+            case .text(let t)?: "text:\(t)"
+            case .number(let n)?: "number:\(n)"
+            case .bool(let b)?: "bool:\(b)"
+            case let other?: "value:\(other.asText)"
+            }
+        }
+        return inputs.sorted { $0.key < $1.key }.map { "\($0.key)=\(describe($0.value))" }.joined(separator: "\u{1}")
     }
 
     /// Drops what a removed step computed.

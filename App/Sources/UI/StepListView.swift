@@ -92,7 +92,9 @@ struct StepListView: View {
         case .side(let ifID, let yes, let empty):
             let add = { session.palette = .init(after: (ifID, yes ? "yes" : "no")) }
             Group {
-                if yes, let ifNode = graph.node(ifID) {
+                if let ask = graph.node(ifID), ask.type == "ask" {
+                    AskSide(node: ask, yes: yes, empty: empty, add: add)
+                } else if yes, let ifNode = graph.node(ifID) {
                     IfCondition(node: ifNode, before: nodes(before: ifID), empty: empty, add: add)
                 } else {
                     ElseLabel(empty: empty, add: add, elseIf: { actions.elseIf(ifID) })
@@ -112,7 +114,7 @@ struct StepListView: View {
             guard !empty else { return nil }
             (source, output) = (id, yes ? "yes" : "no")
         case .step(let node):
-            guard node.type != "if", let def = node.def else { return nil }
+            guard !StepRows.isBranch(node.type), let def = node.def else { return nil }
             var taken: String?
             if case .step(let below)? = next?.kind {
                 taken = graph.incoming(below.id).first { $0.source == node.id }?.sourceHandle
@@ -189,6 +191,9 @@ struct StepRows {
 
     let rows: [Row]
 
+    /// Steps whose Yes and No sides sit indented under them: Split and Ask.
+    static func isBranch(_ type: String) -> Bool { type == "if" || type == "ask" }
+
     /// Each step's number, by its id. Split and Merge have none.
     static func numbers(of rows: [Row]) -> [String: Int] {
         Dictionary(uniqueKeysWithValues: rows.compactMap { row in
@@ -206,7 +211,7 @@ struct StepRows {
             for edge in graph.incoming(node.id) {
                 guard let source = graph.node(edge.source) else { continue }
                 var p = path[edge.source] ?? []
-                if source.type == "if", edge.sourceHandle == "yes" || edge.sourceHandle == "no" {
+                if Self.isBranch(source.type), edge.sourceHandle == "yes" || edge.sourceHandle == "no" {
                     p.append(.side(ifID: source.id, yes: edge.sourceHandle == "yes"))
                 }
                 guard let current = found else { found = p; continue }
@@ -228,7 +233,7 @@ struct StepRows {
                 if !logic { number += 1 }
                 rows.append(Row(kind: .step(node), guides: guides(at), number: logic ? nil : number,
                                 symbol: logic ? symbol(for: node.type) : nil))
-                if node.type == "if" {
+                if Self.isBranch(node.type) {
                     for yes in [true, false] {
                         let side = at + [.side(ifID: node.id, yes: yes)]
                         let empty = !graph.edges.contains { $0.source == node.id && $0.sourceHandle == (yes ? "yes" : "no") }

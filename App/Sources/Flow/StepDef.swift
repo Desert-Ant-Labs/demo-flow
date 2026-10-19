@@ -76,16 +76,30 @@ final class RunContext: @unchecked Sendable {
     let mayWrite: Bool
     /// Reports which item a loop is on, of how many.
     let progress: @Sendable (Int, Int) -> Void
+    /// Someone has the flow open in a window and can answer a question at
+    /// once. A run a trigger started may have nobody watching.
+    let attended: Bool
+    /// Puts a question to whoever runs the flow and waits for the answer.
+    private let asker: (@Sendable (Question) async throws -> Answer)?
     private let lock = NSLock()
     private var modelTime: Double = 0
     private var itemCount: Int?
     private var remark: String?
 
-    init(id: String, samples: Bool = false, mayWrite: Bool = false, progress: @escaping @Sendable (Int, Int) -> Void) {
+    init(id: String, samples: Bool = false, mayWrite: Bool = false, attended: Bool = true,
+         asker: (@Sendable (Question) async throws -> Answer)? = nil, progress: @escaping @Sendable (Int, Int) -> Void) {
         self.id = id
         self.samples = samples
         self.mayWrite = mayWrite
+        self.attended = attended
+        self.asker = asker
         self.progress = progress
+    }
+
+    /// Waits for the answer to a question, or throws when the run is cancelled.
+    func ask(_ question: Question) async throws -> Answer {
+        guard let asker else { throw StepError("Nobody can answer a question here") }
+        return try await asker(question)
     }
 
     /// Whether this run may write, move, or rename these files: always once
@@ -157,16 +171,27 @@ struct StepDef: Sendable {
     /// Runs when either of its inputs brings something.
     var anyInput = false
     var pick: Pick? = nil
+    /// The outputs a setting decides on, for a step whose outputs follow its
+    /// settings rather than being picked: Ask gives an Answer only when it
+    /// asks for one.
+    var shows: (@Sendable (Params) -> Set<String>)? = nil
     var width: CGFloat? = nil
     var resizable = false
     var featured = false
     /// Changes files on every run when its settings say so, which waits for
     /// `RunContext.mayWrite`.
     var writes = false
+    /// Waits for a person's answer. Running the flow again on purpose keeps
+    /// the answer while what it was about stays the same.
+    var asks = false
     let run: @Sendable (StepRun) async throws -> Outputs
 
     /// The outputs this step shows. A wired output stays even when switched off.
     func visibleOutputs(_ params: Params, wired: Set<String> = []) -> [Port] {
+        if let shows {
+            let on = shows(params)
+            return outputs.filter { on.contains($0.id) || wired.contains($0.id) }
+        }
         guard let pick else { return outputs }
         let on = Set(params["fields"]?.strings ?? pick.defaults)
         return outputs.filter { on.contains($0.id) || wired.contains($0.id) }
@@ -180,7 +205,7 @@ struct StepError: LocalizedError {
 }
 
 enum Steps {
-    static let all: [StepDef] = TriggerSteps.all + InputSteps.all + ModelSteps.all + LogicSteps.all + [ReadTextStep.def, ConvertStep.def] + OutputSteps.all + FileSteps.all + [LogicSteps.note]
+    static let all: [StepDef] = TriggerSteps.all + InputSteps.all + ModelSteps.all + LogicSteps.all + [AskStep.def, ReadTextStep.def, ConvertStep.def] + OutputSteps.all + FileSteps.all + [LogicSteps.note]
     static let byType: [String: StepDef] = Dictionary(uniqueKeysWithValues: all.map { ($0.type, $0) })
     static let palette = all
 }

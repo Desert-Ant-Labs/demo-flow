@@ -89,8 +89,8 @@ targets:
       properties:
         CFBundleDisplayName: Desert Ant Flow
         NSHumanReadableCopyright: © 2026 Desert Ant Labs B.V. Flow is MIT licensed. The models are under the Desert Ant Labs Source-Available License.
-        CFBundleShortVersionString: "0.0.1"
-        CFBundleVersion: "1"
+        CFBundleShortVersionString: "0.0.2"
+        CFBundleVersion: "2"
         LSMinimumSystemVersion: "26.0"
         LSApplicationCategoryType: public.app-category.productivity
         SUFeedURL: https://github.com/Desert-Ant-Labs/demo-flow/releases/latest/download/appcast.xml

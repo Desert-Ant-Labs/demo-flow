@@ -19,6 +19,7 @@ func activity(_ s: StepState, model: ModelHub.State?, name: String = "the model"
     case .preparing: return "Preparing \(name) for this Mac"
     default: break
     }
+    if s.asking { return "Waiting for your answer" }
     if s.status == .running { return s.items > 1 ? "Item \(s.item) of \(s.items)" : "Working" }
     return nil
 }

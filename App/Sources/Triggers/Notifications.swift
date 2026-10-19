@@ -9,10 +9,17 @@ import UserNotifications
 enum Notifications {
     private enum Action: String {
         case open, reveal, retry, undo
+        case yes, no, typed, review
     }
 
     private enum Category: String, CaseIterable {
         case finished, finishedWithFiles, changedFiles, failed
+        /// A question with Yes and No.
+        case confirm
+        /// A question answered by typing.
+        case type
+        /// A question with items to pick or answers to choose, which opens the review window.
+        case review
 
         var actions: [UNNotificationAction] {
             switch self {
@@ -20,6 +27,12 @@ enum Notifications {
             case .finishedWithFiles: [action(.open, "Open"), action(.reveal, "Show in Finder")]
             case .changedFiles: [action(.open, "Open"), UNNotificationAction(identifier: Action.undo.rawValue, title: "Undo")]
             case .failed: [UNNotificationAction(identifier: Action.retry.rawValue, title: "Try again"), action(.open, "Open")]
+            case .confirm: [UNNotificationAction(identifier: Action.yes.rawValue, title: "Yes"),
+                            UNNotificationAction(identifier: Action.no.rawValue, title: "No")]
+            case .type: [UNTextInputNotificationAction(identifier: Action.typed.rawValue, title: "Answer", textInputButtonTitle: "Send",
+                                                       textInputPlaceholder: ""),
+                         UNNotificationAction(identifier: Action.no.rawValue, title: "Skip")]
+            case .review: [action(.review, "Open")]
             }
         }
 
@@ -58,6 +71,33 @@ enum Notifications {
         center.removeDeliveredNotifications(withIdentifiers: [run.id.uuidString])
     }
 
+    /// Puts a run's question to whoever is at the Mac. The floater asks it
+    /// too, so this is for someone who looks at notifications first.
+    static func ask(_ run: FlowRun, _ question: Question) {
+        let content = UNMutableNotificationContent()
+        content.threadIdentifier = run.trigger.id.uuidString
+        content.title = run.title
+        content.body = [question.text, question.about].compactMap { $0 }.joined(separator: "\n")
+        content.userInfo = ["run": run.id.uuidString, "question": question.id.uuidString]
+        content.sound = .default
+        content.categoryIdentifier = switch question.kind {
+        case .confirm: Category.confirm.rawValue
+        case .type: Category.type.rawValue
+        case .pick, .choose: Category.review.rawValue
+        }
+        let request = UNNotificationRequest(identifier: question.id.uuidString, content: content, trigger: nil)
+        Task {
+            let status = await center.notificationSettings().authorizationStatus
+            guard status == .authorized || status == .provisional else { return }
+            try? await center.add(request)
+        }
+    }
+
+    /// Takes back a question once it is answered, or once the run goes on without it.
+    static func withdraw(_ question: Question) {
+        center.removeDeliveredNotifications(withIdentifiers: [question.id.uuidString])
+    }
+
     private static func content(for run: FlowRun) -> UNMutableNotificationContent? {
         let content = UNMutableNotificationContent()
         content.threadIdentifier = run.trigger.id.uuidString
@@ -87,6 +127,21 @@ enum Notifications {
         return try? UNNotificationAttachment(identifier: "thumbnail", url: copy)
     }
 
+    /// An answer from a question's notification. A question already answered
+    /// elsewhere, or gone with its run, is left alone.
+    fileprivate static func respond(run id: String?, question: String, action: String, text: String?) {
+        guard action != UNNotificationDismissActionIdentifier,
+              let run = id.flatMap(UUID.init(uuidString:)).flatMap(TriggerCenter.shared.run),
+              run.question?.id.uuidString == question
+        else { return }
+        switch Action(rawValue: action) {
+        case .yes: run.answer(.yes)
+        case .no: run.answer(.no)
+        case .typed: run.answer(.typed(text ?? ""))
+        default: AskWindow.shared.show(run)
+        }
+    }
+
     fileprivate static func respond(run id: String?, file: String?, action: String) {
         guard action != UNNotificationDismissActionIdentifier else { return }
         let center = TriggerCenter.shared
@@ -98,6 +153,7 @@ enum Notifications {
         case .reveal: if let run { center.reveal(run) }
         case .undo:
             if let run { center.undo(run) } else if let record { center.undo(record) }
+        case .yes, .no, .typed, .review: break
         case .open, nil:
             if let run { center.openResult(run) } else if let record { center.openResult(record) } else if let file { center.open(file) }
         }
@@ -111,6 +167,11 @@ enum Notifications {
         func userNotificationCenter(_ center: UNUserNotificationCenter, didReceive response: UNNotificationResponse) async {
             let info = response.notification.request.content.userInfo
             let run = info["run"] as? String
+            if let question = info["question"] as? String {
+                let text = (response as? UNTextInputNotificationResponse)?.userText
+                await Notifications.respond(run: run, question: question, action: response.actionIdentifier, text: text)
+                return
+            }
             let file = (info["file"] as? String).flatMap { $0.isEmpty ? nil : $0 }
             let action = response.actionIdentifier
             await Notifications.respond(run: run, file: file, action: action)

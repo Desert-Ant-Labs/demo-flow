@@ -35,6 +35,8 @@ final class Floater {
     /// Ended runs already shown and put away.
     @ObservationIgnored private var dismissed: Set<UUID> = []
     @ObservationIgnored private var seenPhase: (UUID, FlowRun.Phase)?
+    /// The question the pill was last opened for.
+    @ObservationIgnored private var seenQuestion: UUID?
     @ObservationIgnored private var timer: Task<Void, Never>?
     @ObservationIgnored private var hovering = false
     @ObservationIgnored private var pinned = false
@@ -62,6 +64,7 @@ final class Floater {
     private func observe() {
         withObservationTracking {
             _ = TriggerCenter.shared.runs.map(\.phase)
+            _ = TriggerCenter.shared.runs.map(\.question?.id)
             _ = TriggerCenter.shared.triggers.map(\.on)
             _ = TriggerCenter.shared.paused
         } onChange: {
@@ -76,10 +79,11 @@ final class Floater {
     private func update() {
         let runs = TriggerCenter.shared.runs
         let live = runs.filter(\.live)
+        // A call being recorded comes first, then a run waiting on an answer.
         let order: (FlowRun) -> Int = {
             switch $0.phase {
             case .recording: 0
-            default: 1
+            default: $0.question == nil ? 2 : 1
             }
         }
         let ended = runs.first { !$0.live && !dismissed.contains($0.id) && Date().timeIntervalSince($0.since) < 60 }
@@ -91,6 +95,19 @@ final class Floater {
         if seenPhase?.0 != focus.id || seenPhase?.1 != focus.phase {
             seenPhase = (focus.id, focus.phase)
             entered(focus)
+        }
+        // A question stays open until it is answered, whatever the pointer does.
+        let asking = focus.question?.id
+        if asking != seenQuestion {
+            seenQuestion = asking
+            if asking != nil {
+                timer?.cancel()
+                pinned = true
+                setExpanded(true)
+            } else {
+                pinned = false
+                close()
+            }
         }
         present()
     }

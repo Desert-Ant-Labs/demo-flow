@@ -110,7 +110,8 @@ struct FlowCommands: Commands {
             Button("Zoom In") { editor?.session?.zoom(by: 1.25) }.keyboardShortcut("+").disabled(canvasShowing != true)
             Button("Zoom Out") { editor?.session?.zoom(by: 0.8) }.keyboardShortcut("-").disabled(canvasShowing != true)
             Button("Tidy Up") { editor?.tidy() }.keyboardShortcut("t", modifiers: [.command, .option]).disabled(canvasShowing != true)
-            Button("Show Results") { editor?.session?.showResults.toggle() }.keyboardShortcut("r", modifiers: [.command, .control])
+            Button(editor?.session?.showResults == true ? "Hide Results" : "Show Results") { editor?.session?.showResults.toggle() }
+                .keyboardShortcut("3")
             Divider()
         }
         CommandMenu("Flow") {

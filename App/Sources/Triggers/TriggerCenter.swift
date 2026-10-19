@@ -539,6 +539,9 @@ final class TriggerCenter {
             run.file = file
             // A flow turned on to run by itself writes as it was set up to.
             let engine = Engine(mayWrite: true)
+            engine.attended = false
+            engine.asked = { [weak run] question in if let run { Notifications.ask(run, question) } }
+            engine.settled = { question in Notifications.withdraw(question) }
             run.engine = engine
             let journal = FileJournal()
             await FileJournal.$current.withValue(journal) { await engine.run(graph) }

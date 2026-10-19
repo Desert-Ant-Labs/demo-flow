@@ -2,7 +2,7 @@ import AppKit
 import Foundation
 import SwiftUI
 
-/// `FLOW_DEMO_RUN=record|run|fail|undo|drop` walks a made-up run through its
+/// `FLOW_DEMO_RUN=record|run|fail|undo|drop|ask` walks a made-up run through its
 /// states, to see the pill, the menu, and the notifications without a real
 /// call. Built into every build, since the screenshots come from a release
 /// build, and does nothing unless the variable is set.
@@ -28,15 +28,28 @@ enum Demo {
             case "fail": running(broken, on: photos)
             case "undo": renamed(folder, photos)
             case "drop": Floater.shared.drop(photos)
+            case "ask":
+                // The receipts template, which asks which of the photos Eye found are receipts.
+                let trip = (1...23).map { Samples.url(String(format: "/samples/photos/%03d.jpg", $0)) }
+                let run = running(Trigger(event: .folder(path: trip[0].deletingLastPathComponent().path), flow: .template(id: "file-receipts")), on: trip)
+                // `FLOW_DEMO_REVIEW=1` opens the question in its window once it is asked.
+                if ProcessInfo.processInfo.environment["FLOW_DEMO_REVIEW"] != nil {
+                    Task {
+                        while run.question == nil { try? await Task.sleep(for: .milliseconds(200)) }
+                        AskWindow.shared.show(run)
+                    }
+                }
             default: running(folder, on: photos)
             }
         }
     }
 
-    private static func running(_ trigger: Trigger, on files: [URL]) {
+    @discardableResult
+    private static func running(_ trigger: Trigger, on files: [URL]) -> FlowRun {
         let run = FlowRun(trigger: trigger, phase: .running)
         run.files = files
         TriggerCenter.shared.pretend(run)
+        return run
     }
 
     /// Three screenshots renamed, done, with Undo.

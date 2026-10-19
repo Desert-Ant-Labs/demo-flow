@@ -195,6 +195,10 @@ private struct FloaterCircle: View {
             switch run.phase {
             case .recording:
                 LevelBars(levels: levels.history)
+            case .running where run.question != nil:
+                Image(systemName: "questionmark")
+                    .font(.system(size: 15, weight: .bold))
+                    .foregroundStyle(Color.cream)
             case .running:
                 ProgressRing(progress: run.progress, size: Floater.circle - 6, line: 2.5)
                 AntMark().fill(Color.cream).frame(width: 12, height: 13)
@@ -262,6 +266,14 @@ private struct FloaterPill: View {
     private var center: TriggerCenter { .shared }
 
     var body: some View {
+        if let question = run.question {
+            FloaterQuestion(run: run, question: question)
+        } else {
+            progress
+        }
+    }
+
+    private var progress: some View {
         HStack(spacing: 12) {
             badge
             VStack(alignment: .leading, spacing: 2) {
@@ -365,5 +377,65 @@ private struct FloaterPill: View {
                 .buttonStyle(GlassCapsuleButtonStyle())
             QuietButton(symbol: "xmark", help: "Dismiss") { Floater.shared.finish() }
         }
+    }
+}
+
+/// A run's question in the pill. Yes and No, and a few short answers, are a
+/// click here; picking items or typing opens the review window, since the
+/// pill never takes the keyboard from the app in front.
+private struct FloaterQuestion: View {
+    let run: FlowRun
+    let question: Question
+
+    /// Answers that fit in the pill as buttons.
+    private var inline: [String]? {
+        guard question.kind == .choose, question.options.count <= 3,
+              question.options.allSatisfy({ $0.count <= 14 }) else { return nil }
+        return question.options
+    }
+
+    var body: some View {
+        HStack(spacing: 12) {
+            Badge(symbol: "questionmark", size: 30)
+            VStack(alignment: .leading, spacing: 2) {
+                Text(question.text)
+                    .font(.system(size: 13, weight: .semibold))
+                    .tracking(-0.3)
+                    .foregroundStyle(Color.cream)
+                    .lineLimit(2)
+                Text([run.title, question.about].compactMap { $0 }.joined(separator: " \u{00B7} "))
+                    .font(.system(size: 11))
+                    .foregroundStyle(Color.cream.opacity(0.6))
+                    .lineLimit(1)
+            }
+            .frame(maxWidth: 260, alignment: .leading)
+            .fixedSize(horizontal: false, vertical: true)
+            Spacer(minLength: 4)
+            actions
+        }
+        .floaterPill()
+        .accessibilityElement(children: .contain)
+        .accessibilityLabel("\(run.title) asks: \(question.text)")
+    }
+
+    @ViewBuilder private var actions: some View {
+        switch question.kind {
+        case .confirm:
+            if !question.items.isEmpty {
+                QuietButton(symbol: "rectangle.expand.vertical", help: "Show what it asks about") { AskWindow.shared.show(run) }
+            }
+            QuietTextButton(title: "No", help: "Answer no") { run.answer(.no) }
+            Button("Yes") { run.answer(.yes) }
+                .buttonStyle(GlassCapsuleButtonStyle())
+        case .choose where inline != nil:
+            ForEach(inline ?? [], id: \.self) { option in
+                Button(option) { run.answer(.chose(option)) }
+                    .buttonStyle(GlassCapsuleButtonStyle())
+            }
+        case .pick, .choose, .type:
+            Button(question.kind == .type ? "Answer" : "Review") { AskWindow.shared.show(run) }
+                .buttonStyle(GlassCapsuleButtonStyle())
+        }
+        QuietButton(symbol: "stop.fill", help: "Stop \(run.title)") { run.answer(.stop) }
     }
 }

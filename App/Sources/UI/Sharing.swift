@@ -223,6 +223,18 @@ struct PhotoTransfer: Transferable {
     }
 }
 
+/// A recording shared or dragged out, written as a .wav only once it is asked for.
+struct ClipTransfer: Transferable {
+    let clip: AudioClip
+    let name: String
+
+    static var transferRepresentation: some TransferRepresentation {
+        FileRepresentation(exportedContentType: .wav) { item in
+            SentTransferredFile(await Exports.file(for: item.clip, name: item.name))
+        }
+    }
+}
+
 /// Opens Quick Look on a photo, with the photos around it to page through.
 struct OpenQuickLook {
     var action: @MainActor ([Photo], Photo) -> Void = { _, _ in }

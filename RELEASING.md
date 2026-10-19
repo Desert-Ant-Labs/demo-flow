@@ -25,7 +25,7 @@ NOTARY_PROFILE = "<profile name>"
 
 ## Steps
 
-1. Set `CFBundleShortVersionString` in `project.yml` to the new version, and raise `CFBundleVersion` by one. Sparkle compares build numbers, so an installed copy only updates when the build number goes up. For 0.0.1, the two values are already `0.0.1` and `1`.
+1. Set `CFBundleShortVersionString` in `project.yml` to the new version, and raise `CFBundleVersion` by one. Sparkle compares build numbers, so an installed copy only updates when the build number goes up.
 2. Run the tests with the real models:
 
    ```bash
@@ -82,16 +82,14 @@ NOTARY_PROFILE = "<profile name>"
 
 ## Release notes
 
-Write release notes in plain sentences, with no em dashes, no hype words, and no exclamation marks. The notes for 0.0.1:
+Write release notes in plain sentences, with no em dashes, no hype words, and no exclamation marks. The notes for 0.0.2:
 
 ```markdown
-Desert Ant Flow 0.0.1 is the first release.
+Desert Ant Flow 0.0.2 adds the Ask step and shows results beside the flow.
 
-Build flows out of eleven on-device models and run them on your Mac: Voz, Clear, Ear, Redact, Gist, Emo, Tongue, Shapes, Moderator, Eye, and Who. Start from one of 34 templates or a blank canvas. A flow can run on its own when files arrive in a folder, when a call starts, or on a schedule.
-
-Your recordings, text, and photos never leave your Mac.
-
-Flow needs macOS 26 or later on Apple Silicon. Flow checks for updates once a day and asks before installing one.
+- The Ask step pauses a flow until you answer: Yes or No, unticking the items a model got wrong, choosing from a few answers, or typing one. A flow that runs on its own asks in the floater and in a notification, and can go on with an answer you set once it has waited long enough.
+- Show Results (Command-3) opens the results beside the flow: photos as a wall you can filter by label, tables you can sort and copy, scores as a chart, and text set for reading. Export them all at once as a PDF, as Markdown, or as a folder with each result in its own file.
+- Wires on the canvas are smooth curves in the color of what they carry. Hover a wire to see what flows along it, and watch values move along the wires while a flow runs.
 ```
 
 ## Fixing a bad release

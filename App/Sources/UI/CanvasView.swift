@@ -22,6 +22,8 @@ struct CanvasView: View {
                 Viewport(session: session, content: CanvasCards(graph: $graph, session: session))
             }
             .background(Dots(session: session).allowsHitTesting(false))
+            .onContinuousHover(coordinateSpace: .named("canvas")) { phase in track(phase) }
+            .animation(.easeOut(duration: 0.15), value: session.hover)
             .coordinateSpace(.named("canvas"))
             .clipped()
             .background(ScrollZoomCatcher(session: session))
@@ -44,6 +46,22 @@ struct CanvasView: View {
             .frame(width: 0, height: 0)
             .opacity(0)
             .accessibilityHidden(true)
+    }
+
+    /// Lights up the wire under the pointer, or the wires of the step under it.
+    private func track(_ phase: HoverPhase) {
+        guard !session.onWireLabel, session.connecting == nil else { return }
+        var now: FlowSession.CanvasHover?
+        if case .active(let location) = phase {
+            let point = session.toCanvas(location)
+            let cards = session.cards(of: graph)
+            if let step = cards.first(where: { $0.value.contains(point) })?.key {
+                now = .step(step)
+            } else if let line = WireLine.hit(point, in: WireLine.all(in: graph, points: session.ports, cards: cards), zoom: session.zoom) {
+                now = .wire(line.id)
+            }
+        }
+        if now != session.hover { session.hover = now }
     }
 
     private var pan: some Gesture {
@@ -91,19 +109,37 @@ private struct CanvasCards: View {
         .backgroundPreferenceValue(PortAnchors.self) { anchors in
             GeometryReader { proxy in
                 let points = anchors.mapValues { proxy[$0] }
-                Wires(graph: graph, points: points, cards: cards, busy: session.engine.busy, connecting: session.connecting,
-                      zoom: session.zoom, moving: !reduceMotion)
+                Wires(lines: WireLine.all(in: graph, points: points, cards: session.cards(of: graph)), busy: session.engine.busy,
+                      finished: session.finished, connecting: session.connecting, from: session.connecting.flatMap { points[$0.from] },
+                      hover: session.hover, zoom: session.zoom, canvas: Theme.canvas, moving: !reduceMotion)
+                    .equatable()
                     .allowsHitTesting(false)
                     .onChange(of: points, initial: true) { session.ports = points }
+                    .onChange(of: session.engine.busy) { before, now in
+                        // A step that stopped working sends its result on, unless it failed.
+                        for id in before.subtracting(now) where session.engine.state(id).status == .done {
+                            let at = Date.now
+                            session.finished[id] = at
+                            // Once its bead has landed, the canvas can stop animating.
+                            Task {
+                                try? await Task.sleep(for: .seconds(Wires.delivery + 0.1))
+                                if session.finished[id] == at { session.finished[id] = nil }
+                            }
+                        }
+                    }
             }
         }
+        .overlay(alignment: .topLeading) { wireLabel }
     }
 
-    /// Where each step's card sits, for wires to go around.
-    private var cards: [String: CGRect] {
-        Dictionary(uniqueKeysWithValues: graph.nodes.filter { $0.type != "note" }.map { n in
-            (n.id, CGRect(origin: session.position(n, arranged: graph.meta.arranged), size: session.sizes[n.id] ?? FlowSession.cardSize))
-        })
+    /// The label of the wire under the pointer, at the wire's middle.
+    @ViewBuilder private var wireLabel: some View {
+        if case .wire(let id)? = session.hover,
+           let line = WireLine.all(in: graph, points: session.ports, cards: session.cards(of: graph)).first(where: { $0.id == id }) {
+            let middle = WireRoute.middle(line.corners)
+            WireLabel(line: line, graph: graph, zoom: session.zoom, session: session)
+                .position(middle)
+        }
     }
 
     /// The flow's title and description, written on the canvas above its
@@ -286,48 +322,96 @@ struct Dots: View {
     }
 }
 
-/// Every wire, as a curve from an output to an input, in the color of what it
-/// carries. A wire into a step that is working moves, unless motion is
-/// reduced. A wire that would cross a card on its way goes around it.
+/// One wire as drawn: where it turns, and what it carries.
+struct WireLine: Identifiable {
+    let edge: Edge
+    let corners: [CGPoint]
+    let type: PortType
+    var id: String { edge.id }
+    var path: Path { WireRoute.path(corners) }
+}
+
+extension WireLine {
+    /// How far a wire stops short of a port's center, so it meets the dot's edge.
+    static let gap: CGFloat = 7
+    /// How far apart wires sharing a gutter run.
+    static let spacing: CGFloat = 7
+
+    /// Every wire between ports that have been laid out. Wires leaving one
+    /// output fan out in the order of where they go, so they never overlap.
+    static func all(in graph: Graph, points: [FlowSession.PortKey: CGPoint], cards: [String: CGRect]) -> [WireLine] {
+        let ends = graph.edges.compactMap { e -> (Edge, CGPoint, CGPoint)? in
+            guard let a = points[.init(node: e.source, port: e.sourceHandle, output: true)],
+                  let b = points[.init(node: e.target, port: e.targetHandle, output: false)] else { return nil }
+            return (e, a, b)
+        }
+        let fans = Dictionary(grouping: ends) { "\($0.0.source).\($0.0.sourceHandle)" }
+        return ends.map { e, a, b in
+            let fan = (fans["\(e.source).\(e.sourceHandle)"] ?? []).sorted { $0.2.y < $1.2.y }
+            let i = CGFloat(fan.firstIndex { $0.0 == e } ?? 0)
+            let spread = (i - CGFloat(fan.count - 1) / 2) * spacing
+            let around = cards.filter { $0.key != e.source && $0.key != e.target }.map(\.value)
+            let corners = WireRoute.corners(from: CGPoint(x: a.x + gap, y: a.y), to: CGPoint(x: b.x - gap, y: b.y),
+                                            source: cards[e.source], target: cards[e.target], around: around, spread: spread)
+            let type = graph.node(e.source)?.def?.outputs.first { $0.id == e.sourceHandle }?.type ?? .any
+            return WireLine(edge: e, corners: corners, type: type)
+        }
+    }
+
+    /// The wire under a point, within a few points of it either side.
+    static func hit(_ point: CGPoint, in lines: [WireLine], zoom: CGFloat) -> WireLine? {
+        let reach = StrokeStyle(lineWidth: 12 / zoom, lineCap: .round, lineJoin: .round)
+        return lines.last { $0.path.strokedPath(reach).contains(point) }
+    }
+}
+
+/// Every wire, in the color of what it carries, brightening toward its
+/// input so it reads which way things go, on a halo of the canvas's color so
+/// crossings read. The wire under the pointer, or the wires of the step under
+/// it, stand out and the rest step back.
+///
+/// While a step works, beads stream along the wires into it; when it is
+/// done, one bright bead carries its result out along each wire it feeds.
+/// With Reduce Motion the wires into a working step brighten instead.
 struct Wires: View, Equatable {
-    let graph: Graph
-    let points: [FlowSession.PortKey: CGPoint]
-    let cards: [String: CGRect]
+    let lines: [WireLine]
     let busy: Set<String>
+    /// When each step last finished, for the bead that carries its result out.
+    let finished: [String: Date]
     let connecting: FlowSession.Connecting?
+    let from: CGPoint?
+    let hover: FlowSession.CanvasHover?
     let zoom: CGFloat
+    let canvas: Color
     var moving = true
+
+    /// How long a finished step's bead takes to cross its wire.
+    static let delivery: TimeInterval = 0.7
+    /// How fast beads move, in points a second.
+    private static let pace: CGFloat = 220
 
     var body: some View {
         // The drawing covers every wire, which can run left of and above the
         // first card, where the view's own frame does not reach.
-        let bounds = points.values.reduce(CGRect.null) { $0.union(CGRect(origin: $1, size: .zero)) }
-            .union(cards.values.reduce(CGRect.null) { $0.union($1) })
+        let bounds = lines.flatMap(\.corners).reduce(CGRect.null) { $0.union(CGRect(origin: $1, size: .zero)) }
             .union(connecting.map { CGRect(origin: $0.to, size: .zero) } ?? .null)
-            .insetBy(dx: -200, dy: -200)
-        // Wider in the canvas's units as it zooms out, so a wire stays
-        // visible on screen.
-        let width = max(1.5 / zoom, 2.2)
-        TimelineView(.animation(paused: busy.isEmpty || !moving)) { context in
+            .union(from.map { CGRect(origin: $0, size: .zero) } ?? .null)
+            .insetBy(dx: -60, dy: -60)
+        // Wider in the canvas's units as it zooms out, so a wire stays visible on screen.
+        let width = max(1.6 / zoom, 2.6)
+        let delivering = finished.values.contains { Date().timeIntervalSince($0) < Self.delivery }
+        TimelineView(.animation(paused: !moving || (busy.isEmpty && !delivering))) { context in
             Canvas { ctx, _ in
                 guard !bounds.isNull else { return }
                 ctx.translateBy(x: -bounds.minX, y: -bounds.minY)
-                let phase = moving ? context.date.timeIntervalSinceReferenceDate * 30 : 0
-                for e in graph.edges where e != connecting?.lifting {
-                    guard let a = points[.init(node: e.source, port: e.sourceHandle, output: true)],
-                          let b = points[.init(node: e.target, port: e.targetHandle, output: false)]
-                    else { continue }
-                    let type = graph.node(e.source)?.def?.outputs.first { $0.id == e.sourceHandle }?.type ?? .any
-                    let live = busy.contains(e.target)
-                    let around = cards.filter { $0.key != e.source && $0.key != e.target }.map(\.value)
-                    ctx.stroke(curve(a, b, lane: WireRoute.lane(from: a, to: b, around: around)),
-                               with: .color(Theme.wire(type).opacity(live ? 1 : 0.85)),
-                               style: StrokeStyle(lineWidth: width, lineCap: .round,
-                                                  dash: live ? [8, 6] : [], dashPhase: live ? -phase : 0))
+                let now = context.date
+                for line in lines where line.edge != connecting?.lifting {
+                    draw(line, in: &ctx, width: width, at: now)
                 }
-                if let c = connecting, let a = points[c.from] {
-                    ctx.stroke(curve(a, c.to), with: .color(Theme.wire(c.type)),
-                               style: StrokeStyle(lineWidth: 2 / zoom, lineCap: .round, dash: [5 / zoom, 4 / zoom]))
+                if let c = connecting, let a = from {
+                    let corners = WireRoute.corners(from: CGPoint(x: a.x + WireLine.gap, y: a.y), to: c.to)
+                    ctx.stroke(WireRoute.path(corners), with: .color(Theme.wire(c.type)),
+                               style: StrokeStyle(lineWidth: width, lineCap: .round, dash: [6 / zoom, 5 / zoom]))
                 }
             }
             .frame(width: bounds.isNull ? 0 : bounds.width, height: bounds.isNull ? 0 : bounds.height)
@@ -335,22 +419,139 @@ struct Wires: View, Equatable {
         }
     }
 
-    /// The plain curve, or around the cards in the way: up or down to a
-    /// level lane past them, then back to the input.
-    private func curve(_ a: CGPoint, _ b: CGPoint, lane: WireRoute.Lane? = nil) -> Path {
-        var p = Path()
-        p.move(to: a)
-        guard let lane else {
-            let (c1, c2) = WireRoute.controls(a, b)
-            p.addCurve(to: b, control1: c1, control2: c2)
-            return p
+    private func draw(_ line: WireLine, in ctx: inout GraphicsContext, width: CGFloat, at now: Date) {
+        let path = line.path
+        let lit = isLit(line)
+        let live = busy.contains(line.edge.target)
+        let color = Theme.wire(line.type)
+        let w = lit == true ? width * 1.6 : width
+        let strength = lit == false ? 0.2 : live || lit == true ? 1 : 0.85
+        let round = StrokeStyle(lineWidth: w, lineCap: .round, lineJoin: .round)
+        guard let start = line.corners.first, let end = line.corners.last else { return }
+        ctx.stroke(path, with: .color(canvas), style: StrokeStyle(lineWidth: w + 4, lineCap: .round, lineJoin: .round))
+        ctx.stroke(path, with: .linearGradient(Gradient(colors: [color.opacity(strength * 0.55), color.opacity(strength)]),
+                                               startPoint: start, endPoint: end), style: round)
+        guard moving, lit != false else { return }
+        let length = max(WireRoute.length(line.corners), 1)
+        if live {
+            // Beads every 46 points, streaming toward the step at work.
+            let spacing: CGFloat = 46
+            let shift = CGFloat(now.timeIntervalSinceReferenceDate) * Self.pace
+            var offset = shift.truncatingRemainder(dividingBy: spacing)
+            while offset < length {
+                bead(on: path, at: offset / length, color: color, size: w + 2.5, in: &ctx)
+                offset += spacing
+            }
         }
-        let enter = CGPoint(x: lane.from, y: lane.y), leave = CGPoint(x: lane.to, y: lane.y)
-        let inDx = (enter.x - a.x) * 0.6, outDx = (b.x - leave.x) * 0.6
-        p.addCurve(to: enter, control1: CGPoint(x: a.x + inDx, y: a.y), control2: CGPoint(x: enter.x - inDx, y: enter.y))
-        p.addLine(to: leave)
-        p.addCurve(to: b, control1: CGPoint(x: leave.x + outDx, y: leave.y), control2: CGPoint(x: b.x - outDx, y: b.y))
-        return p
+        if let done = finished[line.edge.source] {
+            let t = now.timeIntervalSince(done) / Self.delivery
+            if (0..<1).contains(t) {
+                // Eases out, so the result lands softly at the input.
+                let eased = 1 - pow(1 - t, 3)
+                bead(on: path, at: eased, color: color, size: w + 5, in: &ctx, glow: 8)
+            }
+        }
+    }
+
+    private func bead(on path: Path, at t: CGFloat, color: Color, size: CGFloat, in ctx: inout GraphicsContext, glow: CGFloat = 4) {
+        guard let point = path.trimmedPath(from: 0, to: min(max(t, 0.0001), 1)).currentPoint else { return }
+        var layer = ctx
+        layer.addFilter(.shadow(color: color, radius: glow))
+        layer.fill(Path(ellipseIn: CGRect(x: point.x - size / 2, y: point.y - size / 2, width: size, height: size)), with: .color(color))
+        ctx.fill(Path(ellipseIn: CGRect(x: point.x - size / 4, y: point.y - size / 4, width: size / 2, height: size / 2)),
+                 with: .color(.white.opacity(0.85)))
+    }
+
+    /// True for a wire to bring out, false for one to step back, nil when nothing is hovered.
+    private func isLit(_ line: WireLine) -> Bool? {
+        switch hover {
+        case .wire(let id)?: line.id == id
+        case .step(let id)?: line.edge.source == id || line.edge.target == id
+        case nil: nil
+        }
+    }
+
+    nonisolated static func == (a: Self, b: Self) -> Bool {
+        a.lines.map(\.corners) == b.lines.map(\.corners) && a.lines.map(\.id) == b.lines.map(\.id) && a.busy == b.busy
+            && a.finished == b.finished && a.connecting == b.connecting && a.from == b.from && a.hover == b.hover
+            && a.zoom == b.zoom && a.moving == b.moving
+    }
+}
+
+/// The hovered wire's label at its middle: what is flowing along it, as
+/// photos, words, or a number, and where it goes, with a way to take the
+/// wire out. It stays the same size on screen at any zoom.
+struct WireLabel: View {
+    let line: WireLine
+    let graph: Graph
+    let zoom: CGFloat
+    let session: FlowSession
+    @Environment(\.flowActions) private var actions
+
+    var body: some View {
+        let e = line.edge
+        let to = graph.node(e.target)?.def?.inputs.first { $0.id == e.targetHandle }?.label ?? e.targetHandle
+        let value = session.engine.state(e.source).outputs?[e.sourceHandle]
+        HStack(spacing: 8) {
+            if let value { WireValue(value: value) }
+            HStack(spacing: 4) {
+                Image(systemName: "arrow.right").font(.caption2.weight(.bold)).foregroundStyle(Theme.wire(line.type))
+                Text(graph.name(of: e.target)).fontWeight(.medium)
+                if to.caseInsensitiveCompare(graph.name(of: e.target)) != .orderedSame { Text(to).foregroundStyle(.secondary) }
+            }
+            Button {
+                actions.change { $0.wire(e.target, e.targetHandle, from: nil) }
+                session.hover = nil
+                session.onWireLabel = false
+            } label: {
+                Image(systemName: "xmark").font(.caption2.weight(.bold)).frame(width: 18, height: 18).contentShape(.circle)
+            }
+            .buttonStyle(.plain)
+            .help("Take out this wire")
+            .accessibilityLabel("Take out this wire")
+        }
+        .font(.callout)
+        .lineLimit(1)
+        .padding(.leading, 8)
+        .padding(.trailing, 5)
+        .padding(.vertical, 5)
+        .glassEffect(.regular, in: .capsule)
+        .fixedSize()
+        .onHover { session.onWireLabel = $0 }
+        .scaleEffect(1 / zoom)
+        .transition(.opacity.combined(with: .scale(scale: 0.9)))
+    }
+}
+
+/// What a wire carries, at a glance: a few photos, the start of the words, a
+/// number, or how long a recording is.
+private struct WireValue: View {
+    let value: Value
+
+    var body: some View {
+        let items = value.present
+        let photos = items.compactMap(\.photo)
+        HStack(spacing: 6) {
+            if !photos.isEmpty {
+                HStack(spacing: -6) {
+                    ForEach(photos.prefix(4)) { photo in
+                        Image(decorative: photo.thumb, scale: 1).resizable().scaledToFill()
+                            .frame(width: 22, height: 22)
+                            .clipShape(.rect(cornerRadius: 5))
+                            .overlay(RoundedRectangle(cornerRadius: 5).strokeBorder(.background, lineWidth: 1.5))
+                    }
+                }
+            }
+            Text(summary(items, photos: photos.count))
+        }
+    }
+
+    private func summary(_ items: [Value], photos: Int) -> String {
+        if photos > 0 { return photos == 1 ? "1 photo" : "\(photos) photos" }
+        if let clip = value.audio { return String(format: "%.1fs of audio", clip.duration) }
+        if items.count > 1 { return AskStep.counted(items) }
+        let text = value.asText.trimmingCharacters(in: .whitespacesAndNewlines)
+        return text.count > 42 ? "\u{201C}" + text.prefix(40) + "\u{2026}\u{201D}" : text.isEmpty ? "Nothing" : "\u{201C}\(text)\u{201D}"
     }
 }
 

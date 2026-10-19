@@ -6,31 +6,45 @@ import Testing
 @Suite struct WireRouteTests {
     private let card = CGRect(x: 400, y: -150, width: 300, height: 300)
 
-    @Test func aWireToTheNextColumnTakesThePlainCurve() {
-        #expect(WireRoute.lane(from: CGPoint(x: 0, y: 0), to: CGPoint(x: 380, y: 40), around: [card]) == nil)
+    @Test func aWireToTheNextColumnTurnsInTheGutter() {
+        let corners = WireRoute.corners(from: CGPoint(x: 0, y: 0), to: CGPoint(x: 380, y: 40), around: [card])
+        #expect(corners.count == 4)
+        #expect(corners[1].x == corners[2].x && corners[1].y == 0 && corners[2].y == 40)
     }
 
-    @Test func aWireThatSkipsAColumnGoesAroundTheCardBetween() throws {
-        let a = CGPoint(x: 300, y: -40), b = CGPoint(x: 800, y: 0)
-        let lane = try #require(WireRoute.lane(from: a, to: b, around: [card]))
-        #expect(lane.y <= card.minY - WireRoute.clearance)
-        #expect(lane.from <= card.minX && lane.to >= card.maxX)
+    @Test func aLevelWireIsStraight() {
+        #expect(WireRoute.corners(from: CGPoint(x: 0, y: 10), to: CGPoint(x: 300, y: 10)).count == 2)
     }
 
-    @Test func itGoesUnderWhenThatIsShorter() throws {
-        let a = CGPoint(x: 300, y: 120), b = CGPoint(x: 800, y: 130)
-        let lane = try #require(WireRoute.lane(from: a, to: b, around: [card]))
-        #expect(lane.y >= card.maxY + WireRoute.clearance)
+    @Test func aWireThatSkipsAColumnGoesOverTheCardBetween() {
+        let corners = WireRoute.corners(from: CGPoint(x: 300, y: -40), to: CGPoint(x: 800, y: 0), around: [card])
+        let lane = corners.map(\.y).min()!
+        #expect(lane <= card.minY - WireRoute.clearance)
+        #expect(corners[1].x < card.minX && corners[4].x > card.maxX)
     }
 
-    @Test func itClearsACardStackedAboveTheOneInTheWay() throws {
+    @Test func itGoesUnderWhenThatIsShorter() {
+        let corners = WireRoute.corners(from: CGPoint(x: 300, y: 120), to: CGPoint(x: 800, y: 130), around: [card])
+        #expect(corners.map(\.y).max()! >= card.maxY + WireRoute.clearance)
+    }
+
+    @Test func itClearsACardStackedAboveTheOneInTheWay() {
         let above = CGRect(x: 420, y: -500, width: 280, height: 320)
-        let lane = try #require(WireRoute.lane(from: CGPoint(x: 300, y: -60), to: CGPoint(x: 800, y: -60), around: [card, above]))
-        #expect(lane.y <= above.minY - WireRoute.clearance || lane.y >= card.maxY + WireRoute.clearance)
+        let corners = WireRoute.corners(from: CGPoint(x: 300, y: -60), to: CGPoint(x: 800, y: -60), around: [card, above])
+        let lane = corners.count == 6 ? corners[2].y : 0
+        #expect(lane <= above.minY - WireRoute.clearance || lane >= card.maxY + WireRoute.clearance)
     }
 
-    @Test func aWireBackwardsIsLeftAlone() {
-        #expect(WireRoute.lane(from: CGPoint(x: 800, y: 0), to: CGPoint(x: 300, y: 0), around: [card]) == nil)
+    @Test func aWireBackwardsRunsUnderBothCards() {
+        let source = CGRect(x: 600, y: -100, width: 200, height: 200), target = CGRect(x: 100, y: -50, width: 200, height: 300)
+        let corners = WireRoute.corners(from: CGPoint(x: 800, y: 0), to: CGPoint(x: 100, y: 0), source: source, target: target)
+        #expect(corners.map(\.y).max()! >= target.maxY + WireRoute.clearance)
+    }
+
+    @Test func wiresFromOneOutputFanOut() {
+        let a = WireRoute.corners(from: .zero, to: CGPoint(x: 300, y: -80), spread: -3.5)
+        let b = WireRoute.corners(from: .zero, to: CGPoint(x: 300, y: 80), spread: 3.5)
+        #expect(a[1].x != b[1].x)
     }
 }
 

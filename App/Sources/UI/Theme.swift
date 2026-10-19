@@ -50,11 +50,13 @@ enum Theme {
     /// lifted in dark mode, where they would sink into the window.
     static func wire(_ type: PortType) -> Color {
         switch type {
-        case .text: rgb(0x698A80)
-        case .audio: Color(light: rgb(0x1C525D), dark: rgb(0x4F98A6))
-        case .image: Color(light: rgb(0x344B5A), dark: rgb(0x7896AA))
-        case .stroke: rgb(0xDB704C)
-        case .any: Color(light: rgb(0x57606A), dark: rgb(0x9AA5A1))
+        // Each kind of value its own clear color, legible on the light canvas
+        // and the dark one, and on the model cards wires pass behind.
+        case .text: Color(light: rgb(0x3E8A6F), dark: rgb(0x6FC3A3))
+        case .audio: Color(light: rgb(0x1F7A8C), dark: rgb(0x5CC0D4))
+        case .image: Color(light: rgb(0x3D6FB0), dark: rgb(0x86AEE6))
+        case .stroke: Color(light: rgb(0xD0643E), dark: rgb(0xF0936E))
+        case .any: Color(light: rgb(0x6A6F78), dark: rgb(0xB4BAC2))
         }
     }
 
@@ -79,6 +81,7 @@ func symbol(for type: String) -> String {
     case "schedule": "clock"
     case "shortcut": "command"
     case "if": "arrow.triangle.branch"
+    case "ask": "questionmark.bubble"
     case "merge": "arrow.triangle.merge"
     case "list": "list.number"
     case "best": "star"

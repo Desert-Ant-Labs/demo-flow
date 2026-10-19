@@ -17,6 +17,8 @@ final class FlowActions {
     /// Moves a step between two others: after one step's output, before the
     /// step that took it.
     @ObservationIgnored var move: (String, (node: String, output: String), String?) -> Void = { _, _, _ in }
+    /// Runs the flow again, for a step whose result was just cleared.
+    @ObservationIgnored var rerun: () -> Void = {}
     /// Adds an If under an If's Else, on the same check.
     @ObservationIgnored var elseIf: (String) -> Void = { _ in }
     @ObservationIgnored var title: () -> String = { "" }
