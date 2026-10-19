@@ -106,11 +106,12 @@ final class FlowSession {
     /// The document the window shows, to save it from here.
     var document: NSDocument? { window.flatMap { NSDocumentController.shared.document(for: $0) } }
 
-    /// A flow not saved yet goes by its title, in the title bar and the Save
-    /// dialog, rather than Untitled.
-    func nameUntitled(_ title: String) {
-        guard fileURL == nil, !title.isEmpty else { return }
-        DispatchQueue.main.async { self.document?.displayName = title }
+    /// Shows an unsaved flow's name in the title bar and the Save dialog. An
+    /// empty flow stays Untitled, so macOS can number it.
+    func nameUntitled(_ graph: Graph) {
+        guard fileURL == nil else { return }
+        let name = graph.isUntitled ? nil : graph.name
+        DispatchQueue.main.async { self.document?.displayName = name }
     }
 
     /// Turns the flow on or off. It runs from its file, so turning it on
@@ -122,7 +123,7 @@ final class FlowSession {
             return
         }
         let url: URL
-        do { url = try await save(named: graph.meta.title) } catch {
+        do { url = try await save(named: graph.name) } catch {
             notify("The flow could not be saved, so it is still off")
             return
         }
@@ -138,7 +139,7 @@ final class FlowSession {
             document.save(nil)
             return fileURL
         }
-        let url = SaveTo.flowFile(named: title.isEmpty ? "Flow" : title)
+        let url = SaveTo.flowFile(named: title)
         try await withCheckedThrowingContinuation { (done: CheckedContinuation<Void, Error>) in
             document.save(to: url, ofType: document.fileType ?? "", for: .saveAsOperation) { error in
                 if let error { done.resume(throwing: error) } else { done.resume() }

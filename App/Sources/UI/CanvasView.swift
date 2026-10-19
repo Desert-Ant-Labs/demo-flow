@@ -627,7 +627,7 @@ struct CanvasTitle: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
-            BalancedField(prompt: autoTitle(graph), text: $graph.meta.title)
+            BalancedField(prompt: graph.autoTitle, text: $graph.meta.title)
                 .font(.system(size: 44, weight: .semibold))
                 .kerning(-1.4)
             TextField("Say what this flow does", text: $graph.meta.description, axis: .vertical)

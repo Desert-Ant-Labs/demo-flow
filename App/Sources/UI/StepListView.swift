@@ -374,7 +374,7 @@ struct FlowHeader: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
-            BalancedField(prompt: autoTitle(graph), text: $graph.meta.title)
+            BalancedField(prompt: graph.autoTitle, text: $graph.meta.title)
                 .font(.largeTitle.weight(.bold))
             TextField("Say what this flow does", text: $graph.meta.description, axis: .vertical)
                 .font(.title3)
@@ -383,17 +383,6 @@ struct FlowHeader: View {
             if !graph.nodes.isEmpty { FlowModels(models: graph.models) }
         }
         .frame(maxWidth: 640, alignment: .leading)
-    }
-}
-
-/// An unnamed flow is named after its models.
-func autoTitle(_ graph: Graph) -> String {
-    let names = graph.models.map(\.info.name)
-    switch names.count {
-    case 0: return "Untitled flow"
-    case 1: return "A flow with \(names[0])"
-    // The same list style as the line naming the models under the title.
-    default: return names.dropLast().joined(separator: ", ") + (names.count > 2 ? ", and " : " and ") + names.last!
     }
 }
 

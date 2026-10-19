@@ -56,6 +56,23 @@ struct Graph: Hashable, Sendable {
         return seen
     }
 
+    /// The title, or a name made from the models if there is no title.
+    var name: String { meta.title.isEmpty ? autoTitle : meta.title }
+
+    /// No title, and no models to make one from.
+    var isUntitled: Bool { meta.title.isEmpty && models.isEmpty }
+
+    /// An unnamed flow is named after its models.
+    var autoTitle: String {
+        let names = models.map(\.info.name)
+        switch names.count {
+        case 0: return "Untitled flow"
+        case 1: return "A flow with \(names[0])"
+        // The same list style as the line naming the models under the title.
+        default: return names.dropLast().joined(separator: ", ") + (names.count > 2 ? ", and " : " and ") + names.last!
+        }
+    }
+
     /// Whether a start step runs on the app's samples rather than on files of
     /// yours, as a template does until you add your own or a trigger fills it.
     var runsOnSamples: Bool {

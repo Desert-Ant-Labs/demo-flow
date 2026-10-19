@@ -3,23 +3,12 @@ import Testing
 @testable import Flow
 
 @Suite struct SamplePickerTests {
-    @Test func featuredSamplesAreAFewThatExist() {
-        #expect(Samples.featured.count == 12)
-        #expect(Set(Samples.featured).count == Samples.featured.count)
-        #expect(Samples.featured.allSatisfy { FileManager.default.fileExists(atPath: Samples.url($0).path) })
-        // A new Photos step starts with the portraits, which the grid has to show.
-        #expect(Set(Samples.portraits).isSubset(of: Samples.featured))
-    }
-
-    @Test func aFlowsPicksAreToppedUpWithTheirKind() {
-        #expect(Samples.grid(around: []) == Samples.featured)
-        let faces = Samples.people.prefix(8).map { $0 }
-        let grid = Samples.grid(around: faces)
-        #expect(grid.count == 12)
-        #expect(Array(grid.prefix(8)) == faces)
-        #expect(grid.allSatisfy { $0.hasPrefix("/samples/people/") })
-        let many = Samples.people.prefix(14).map { $0 }
-        #expect(Samples.grid(around: many).count == 18)
+    @Test func everySampleExists() {
+        let all = Samples.trip + Samples.people
+        #expect(Set(all).count == all.count)
+        #expect(all.allSatisfy { FileManager.default.fileExists(atPath: Samples.url($0).path) })
+        // A new Photos step starts with the portraits, which the picker has to show.
+        #expect(Set(Samples.portraits).isSubset(of: all))
     }
 }
 

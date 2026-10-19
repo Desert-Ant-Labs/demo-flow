@@ -15,7 +15,7 @@ struct ExportMenu: View {
             Button("PDF\u{2026}", systemImage: "doc.richtext") { export(.pdf) }
             Button("Markdown\u{2026}", systemImage: "text.document") { export(.markdown) }
             Divider()
-            Button("Folder with Every Result\u{2026}", systemImage: "folder") { export(.folder) }
+            Button("Folder\u{2026}", systemImage: "folder") { export(.folder) }
         } label: {
             Label("Export", systemImage: "square.and.arrow.up.on.square")
         }

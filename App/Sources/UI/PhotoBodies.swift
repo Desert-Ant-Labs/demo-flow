@@ -113,17 +113,14 @@ private struct SampleThumb: View {
     }
 }
 
-/// Several photos: a few samples to tick, the rest a click away, plus any of
-/// your own.
+/// Several photos: samples chosen in a sheet, or your own. The card shows
+/// what the flow uses.
 struct PhotosBody: View {
     let node: Node
     @Environment(\.flowActions) private var actions
     @State private var picked: [PhotosPickerItem] = []
-    /// The samples in the grid, from `Samples.grid`. Set once and only added
-    /// to, so ticking a photo on or off does not move it.
-    @State private var order: [String]?
     @State private var targeted = false
-    @State private var more = false
+    @State private var choosing = false
     @State private var gridHeight: CGFloat?
 
     private let columns = Array(repeating: GridItem(.flexible(), spacing: 6), count: 6)
@@ -131,8 +128,8 @@ struct PhotosBody: View {
     var body: some View {
         let samples = node.params["samples"]?.strings ?? []
         let files = node.params["files"]?.strings ?? []
-        let shown = order ?? []
         let own = !files.isEmpty
+        let shown = own ? files : samples
         VStack(alignment: .leading, spacing: 8) {
             HStack(spacing: 10) {
                 if own {
@@ -140,8 +137,7 @@ struct PhotosBody: View {
                     Button("Use the samples") { useSamples() }.buttonStyle(.link)
                 } else {
                     Text(samples.count == 1 ? "**1** sample" : "**\(samples.count)** samples").font(.callout)
-                    Button("All") { set(shown) }.buttonStyle(.link)
-                    Button("None") { set([]) }.buttonStyle(.link)
+                    Button("Choose Samples…") { choosing = true }.buttonStyle(.link)
                 }
                 Spacer()
                 Menu {
@@ -157,51 +153,30 @@ struct PhotosBody: View {
                     .help(own ? "Add from Photos" : "Use photos from Photos")
             }
             .controlSize(.small)
-            if own {
-                // Your own photos can be any number, so they scroll.
+            if !shown.isEmpty {
                 ScrollView {
                     LazyVGrid(columns: columns, spacing: 6) {
-                        ForEach(files, id: \.self) { path in
-                            let name = URL(filePath: path).lastPathComponent
-                            Button { actions.set(node.id, ["files": .array(files.filter { $0 != path }.map { .string($0) })]) } label: {
-                                Thumb(url: Samples.url(path), on: true)
+                        ForEach(shown, id: \.self) { path in
+                            Button { remove(path, own: own) } label: {
+                                Thumb(url: own ? Samples.url(path) : Samples.thumb(path), on: true)
                             }
                             .buttonStyle(.plain)
-                            .help("Remove \(name)")
-                            .accessibilityLabel(name)
+                            .help("Remove \(own ? URL(filePath: path).lastPathComponent : SampleThumb.name(path))")
+                            .accessibilityLabel(own ? URL(filePath: path).lastPathComponent : SampleThumb.name(path))
                             .accessibilityAddTraits(.isSelected)
                         }
                     }
                     .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { gridHeight = $0 }
                 }
                 .frame(height: min(260, gridHeight ?? 260))
-            } else {
-                LazyVGrid(columns: columns, spacing: 6) {
-                    ForEach(shown, id: \.self) { path in
-                        SampleThumb(path: path, on: samples.contains(path)) { toggle(path, in: samples) }
-                    }
-                }
             }
-            HStack {
-                Text(own ? "Click a photo to remove it. Drop photos here to replace them all." : "Drop photos here to use your own.")
-                    .font(.caption).foregroundStyle(.secondary)
-                Spacer()
-                if !own {
-                    Button("More Samples…") { more = true }
-                        .buttonStyle(.link)
-                        .font(.caption)
-                        .popover(isPresented: $more, arrowEdge: .bottom) {
-                            AllSamples(selected: samples) { toggle($0, in: samples) }
-                        }
-                }
-            }
+            Text(own ? "Click a photo to remove it. Drop photos here to replace them all." : "Click a photo to remove it. Drop photos here to use your own.")
+                .font(.caption).foregroundStyle(.secondary)
         }
         .padding(targeted ? 4 : 0)
         .background(RoundedRectangle(cornerRadius: 10).strokeBorder(targeted ? Color.accentColor : .clear, style: StrokeStyle(lineWidth: 2, dash: [5])))
-        .onAppear {
-            if order == nil {
-                order = Samples.grid(around: samples)
-            }
+        .sheet(isPresented: $choosing) {
+            SamplePicker(selected: samples) { set($0) }
         }
         .onChange(of: picked) {
             let items = picked
@@ -221,12 +196,10 @@ struct PhotosBody: View {
         actions.set(node.id, ["samples": .array(samples.map { .string($0) })])
     }
 
-    /// Ticks a sample on or off. One picked from the full set joins the grid,
-    /// so what the flow uses is always in view.
-    private func toggle(_ path: String, in samples: [String]) {
-        let on = samples.contains(path)
-        if !on, order?.contains(path) == false { order?.append(path) }
-        set(on ? samples.filter { $0 != path } : samples + [path])
+    private func remove(_ path: String, own: Bool) {
+        let key = own ? "files" : "samples"
+        let paths = (node.params[key]?.strings ?? []).filter { $0 != path }
+        actions.set(node.id, [key: .array(paths.map { .string($0) })])
     }
 
     private func choose(replacing: Bool) {
@@ -248,28 +221,58 @@ struct PhotosBody: View {
     }
 }
 
-/// Every sample, by where it came from, for picking beyond the few in the grid.
-private struct AllSamples: View {
-    let selected: [String]
-    let toggle: (String) -> Void
+/// Every sample, to tick on and off without the flow running each time.
+/// The flow gets the picks when you press Use.
+private struct SamplePicker: View {
+    let use: ([String]) -> Void
+    @State private var picks: [String]
+    @Environment(\.dismiss) private var dismiss
+
+    init(selected: [String], use: @escaping ([String]) -> Void) {
+        self.use = use
+        _picks = State(initialValue: selected)
+    }
 
     var body: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: 16) {
-                section("Trip", Samples.trip)
-                section("People", Samples.people)
+        VStack(alignment: .leading, spacing: 0) {
+            Text("Choose samples").font(.title2.weight(.semibold)).padding([.horizontal, .top], 20)
+            ScrollView {
+                VStack(alignment: .leading, spacing: 20) {
+                    section("Trip", Samples.trip)
+                    section("People", Samples.people)
+                }
+                .padding(20)
+            }
+            Divider()
+            HStack {
+                Text(picks.count == 1 ? "1 selected" : "\(picks.count) selected").foregroundStyle(.secondary)
+                Spacer()
+                Button("Cancel", role: .cancel) { dismiss() }
+                    .keyboardShortcut(.cancelAction)
+                Button(picks.count == 1 ? "Use 1 Photo" : "Use \(picks.count) Photos") {
+                    use(picks)
+                    dismiss()
+                }
+                .keyboardShortcut(.defaultAction)
+                .disabled(picks.isEmpty)
             }
             .padding(16)
         }
-        .frame(width: 440, height: 480)
+        .frame(width: 600, height: 620)
     }
 
     private func section(_ title: String, _ paths: [String]) -> some View {
         VStack(alignment: .leading, spacing: 8) {
-            Text(title).font(.headline)
+            HStack(spacing: 10) {
+                Text(title).font(.headline)
+                Button("All") { picks += paths.filter { !picks.contains($0) } }.buttonStyle(.link)
+                Button("None") { picks.removeAll { paths.contains($0) } }.buttonStyle(.link)
+            }
             LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 6), count: 6), spacing: 6) {
                 ForEach(paths, id: \.self) { path in
-                    SampleThumb(path: path, on: selected.contains(path)) { toggle(path) }
+                    SampleThumb(path: path, on: picks.contains(path)) {
+                        if picks.contains(path) { picks.removeAll { $0 == path } } else { picks.append(path) }
+                    }
                 }
             }
         }

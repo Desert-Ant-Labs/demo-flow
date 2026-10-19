@@ -35,6 +35,17 @@ private let modelTests = Testing.ConditionTrait.enabled(
         #expect(again.nodes.first { $0.id == graph.nodes[0].id }?.position == CGPoint(x: 120, y: -40))
     }
 
+    @Test func anUntitledFlowGoesByItsModels() {
+        var graph = Example.all[0].graph
+        #expect(graph.name == Example.all[0].title)
+        graph.meta.title = ""
+        #expect(!graph.models.isEmpty)
+        #expect(graph.name == graph.autoTitle)
+        #expect(graph.name != "Untitled flow")
+        #expect(Graph().name == "Untitled flow")
+        #expect(Graph().isUntitled && !graph.isUntitled)
+    }
+
     @Test func notAFlowIsRefused() {
         #expect(throws: (any Error).self) { try FlowFile.read("hello: world") }
     }

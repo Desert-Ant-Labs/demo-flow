@@ -41,25 +41,6 @@ enum Samples {
         "redhead-selfie-by-mural", "woman-still-in-crosswalk-blur",
     ].map { "/samples/people/\($0).jpg" }
 
-    /// The few a Photos step offers up front: the portraits, then a spread of
-    /// the trip with a receipt or two. The rest are one click further away.
-    static let featured = portraits + [1, 2, 5, 9, 13, 17, 21].map { String(format: "/samples/photos/%03d.jpg", $0) }
-
-    /// The samples a Photos step shows: the flow's own picks, then more of
-    /// the same kind, featured first, as faces for a flow about faces, toward
-    /// whole rows of six and at least two. With no picks, the featured.
-    static func grid(around picks: [String]) -> [String] {
-        var seen = Set<String>()
-        let own = picks.filter { seen.insert($0).inserted }
-        let folder = { (path: String) in (path as NSString).deletingLastPathComponent }
-        let kinds = Set(own.map(folder))
-        // Only more of the same kind: a trip's photos are never topped up with portraits.
-        let kind = own.isEmpty ? featured : (featured + people + trip).filter { kinds.contains(folder($0)) }
-        let fill = kind.filter { seen.insert($0).inserted }
-        let size = max(12, (own.count + 5) / 6 * 6)
-        return own + fill.prefix(max(0, size - own.count))
-    }
-
     /// A sample's file in the app, or a file of your own by its path.
     static func url(_ path: String) -> URL {
         if path.hasPrefix("/samples/") { return root.appending(path: String(path.dropFirst("/samples/".count))) }

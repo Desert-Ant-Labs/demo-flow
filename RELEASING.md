@@ -82,14 +82,13 @@ NOTARY_PROFILE = "<profile name>"
 
 ## Release notes
 
-Write release notes in plain sentences, with no em dashes, no hype words, and no exclamation marks. The notes for 0.0.2:
+Write release notes in plain sentences, with no em dashes, no hype words, and no exclamation marks. The notes for 0.0.3:
 
 ```markdown
-Desert Ant Flow 0.0.2 adds the Ask step and shows results beside the flow.
+Desert Ant Flow 0.0.3 names the flows you haven't named, and lets you choose sample photos without the flow running on every click.
 
-- The Ask step pauses a flow until you answer: Yes or No, unticking the items a model got wrong, choosing from a few answers, or typing one. A flow that runs on its own asks in the floater and in a notification, and can go on with an answer you set once it has waited long enough.
-- Show Results (Command-3) opens the results beside the flow: photos as a wall you can filter by label, tables you can sort and copy, scores as a chart, and text set for reading. Export them all at once as a PDF, as Markdown, or as a folder with each result in its own file.
-- Wires on the canvas are smooth curves in the color of what they carry. Hover a wire to see what flows along it, and watch values move along the wires while a flow runs.
+- A flow without a title is named after its models, like "Clear and Gist", in the title bar, the Save dialog, and the file it saves to. Once you save it, it keeps that name.
+- Choose Samples… shows every sample photo in one sheet. Tick as many as you like, and the flow runs once you press Use.
 ```
 
 ## Fixing a bad release

@@ -131,10 +131,3 @@ import Testing
         #expect(AskStep.counted([.file(URL(filePath: "/a")), .file(URL(filePath: "/b"))]) == "2 files")
     }
 }
-
-@Suite struct SampleGridTests {
-    @Test func aFullSetIsNotToppedUpWithAnotherKind() {
-        let grid = Samples.grid(around: Samples.trip)
-        #expect(grid == Samples.trip)
-    }
-}

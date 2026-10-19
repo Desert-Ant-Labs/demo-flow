@@ -113,11 +113,18 @@ struct FlowEditor: View {
             .onChange(of: session.sizes) { scheduleLayout() }
             .onChange(of: session.canvasSize) { if session.homed && !session.touched { session.home(graph, animated: false) } }
             .onChange(of: graph.nodes.count) { scheduleLayout() }
-            .onChange(of: fileURL) { session.fileURL = fileURL }
+            .onChange(of: fileURL) { old, new in
+                session.fileURL = new
+                // Once it's saved, the flow keeps the name it was saved as.
+                if old == nil, let new, graph.meta.title.isEmpty {
+                    document.graph.meta.title = new.deletingPathExtension().lastPathComponent
+                }
+            }
             .background(WindowReader {
                 session.window = $0
-                session.nameUntitled(graph.meta.title)
+                session.nameUntitled(graph)
             })
+            .onChange(of: graph.name) { session.nameUntitled(graph) }
             .onDisappear { TriggerCenter.shared.forget(session) }
             .task {
                 session.fileURL = fileURL
@@ -316,7 +323,7 @@ struct FlowEditor: View {
         actions.move = { id, after, before in move(id, after: after, before: before) }
         actions.elseIf = { id in addElseIf(id) }
         actions.rerun = { scheduleRun(after: .zero) }
-        actions.title = { graph.meta.title.isEmpty ? autoTitle(graph) : graph.meta.title }
+        actions.title = { graph.name }
         actions.change = { edit in
             var g = document.graph
             edit(&g)
