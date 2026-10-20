@@ -48,15 +48,14 @@ enum OutputSteps {
         inputs: [Port(id: "value", type: .any, label: "Value", list: true), Port(id: "a", type: .any, label: "Name from", optional: true)],
         defaults: ["auto": true, "name": "result"], noMap: true, writes: true
     ) { run in
-        guard run.params["auto"]?.bool ?? true, !run.context.samples, let path = run.params["folder"]?.string, !path.isEmpty,
-              let value = run.inputs["value"]
+        guard run.params["auto"]?.bool ?? true, !run.context.samples, let value = run.inputs["value"],
+              let folder = SaveTo.folder(run.params["folder"]?.string, beside: run.context.source)
         else { return [:] }
         let pattern = run.params["name"]?.string ?? "result"
         // A name made from a value waits for that value, so a flow that has
         // not run yet writes nothing.
         if pattern.contains(#/\{\{\s*a\s*\}\}/#), run.inputs["a"] == nil { return [:] }
-        let name = SaveTo.fileName(pattern, a: run.inputs["a"]?.present.first)
-        let folder = SaveTo.resolve(path)
+        let name = SaveTo.fileName(pattern, a: run.inputs["a"]?.present.first, source: run.context.source)
         guard run.context.mayChange([folder]) else {
             run.context.note = "Run the flow to save"
             return [:]
@@ -139,12 +138,16 @@ enum FolderWriter {
                 try put(Media.png(p.image), fallback + ".png")
             }
         }
+        /// A video keeps its picture; any other sound is written as WAV.
+        func recording(_ a: AudioClip, _ name: String) throws {
+            if let file = a.file, Media.isVideo(file) { try copy(file) } else { try put(Media.wav(a), name + ".wav") }
+        }
         let items = value.present
         let isRecord = { (v: Value) in if case .record = v { true } else { false } }
         switch value {
         case .image(let p): try photo(p, base)
         case .file(let url): try copy(url)
-        case .audio(let a): try put(Media.wav(a), base + ".wav")
+        case .audio(let a): try recording(a, base)
         case .text(let t): try put(Data(t.utf8), base + (looksLikeMarkdown(t) ? ".md" : ".txt"))
         case .number, .bool: try put(Data(value.asText.utf8), base + ".txt")
         case .list, .stream:
@@ -153,7 +156,7 @@ enum FolderWriter {
             } else if !items.isEmpty && items.allSatisfy({ if case .file = $0 { true } else { false } }) {
                 for v in items { try copy(v.fileURL!) }
             } else if !items.isEmpty && items.allSatisfy({ $0.audio != nil }) {
-                for (i, v) in items.enumerated() { try put(Media.wav(v.audio!), "\(base)-\(i + 1).wav") }
+                for (i, v) in items.enumerated() { try recording(v.audio!, "\(base)-\(i + 1)") }
             } else if !items.isEmpty && items.allSatisfy(isRecord) {
                 try put(Data(CSV.text(items).utf8), base + ".csv")
             } else if items.allSatisfy({ $0.string != nil }) {

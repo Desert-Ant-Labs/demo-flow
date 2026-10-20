@@ -1,9 +1,74 @@
 import Foundation
+import Transcript
+
+/// A sentence and who said it.
+struct SpokenLine: Sendable, Equatable {
+    let start: Double
+    let end: Double
+    let speaker: Int
+    let text: String
+}
 
 /// Putting Voz's words and Who's turns together, and keeping speaker numbers
 /// steady while Who listens again to a call that is still going.
 enum Speakers {
     static func name(_ speaker: Int, _ names: [Int: String] = [:]) -> String { names[speaker] ?? "Speaker \(speaker + 1)" }
+
+    /// "Anna, Ben" as the names of the first and second voice.
+    static func names(listed: String) -> [Int: String] {
+        let list = listed.split(separator: ",").map { $0.trimmingCharacters(in: .whitespaces) }.filter { !$0.isEmpty }
+        return Dictionary(uniqueKeysWithValues: list.enumerated().map { ($0.offset, $0.element) })
+    }
+
+    /// A speaker's turns as one when the pause between them is at most `gap`
+    /// and nobody else speaks in it.
+    static func join(_ turns: [SpeakerTurn], gap: Double = 1) -> [SpeakerTurn] {
+        var out: [SpeakerTurn] = []
+        for turn in turns.sorted(by: { ($0.start, $0.speaker) < ($1.start, $1.speaker) }) {
+            if let last = out.last, last.speaker == turn.speaker, turn.start - last.end <= gap {
+                out[out.count - 1] = SpeakerTurn(start: last.start, end: max(last.end, turn.end), speaker: last.speaker)
+            } else {
+                out.append(turn)
+            }
+        }
+        return out
+    }
+
+    /// The words as sentences, each with its speaker. A run of one or two
+    /// words under 0.6s between two runs of the same voice is boundary jitter,
+    /// and goes to that voice.
+    static func lines(_ words: [Transcript.Word], _ turns: [SpeakerTurn]) -> [SpokenLine] {
+        guard !words.isEmpty else { return [] }
+        var runs: [(speaker: Int, range: Range<Int>)] = []
+        for (i, speaker) in assign(words, turns).enumerated() {
+            if runs.last?.speaker == speaker { runs[runs.count - 1].range = runs[runs.count - 1].range.lowerBound..<(i + 1) } else { runs.append((speaker, i..<(i + 1))) }
+        }
+        var i = 1
+        while i + 1 < runs.count {
+            let run = runs[i]
+            if run.range.count <= 2, words[run.range.upperBound - 1].end - words[run.range.lowerBound].start < 0.6, runs[i - 1].speaker == runs[i + 1].speaker {
+                runs[i - 1].range = runs[i - 1].range.lowerBound..<runs[i + 1].range.upperBound
+                runs.removeSubrange(i...(i + 1))
+            } else {
+                i += 1
+            }
+        }
+        return runs.flatMap { run in
+            Sentence.sentences(from: Array(words[run.range]).timed).compactMap { s -> SpokenLine? in
+                let text = s.text.trimmingCharacters(in: .whitespaces)
+                return text.isEmpty ? nil : SpokenLine(start: s.start, end: s.end, speaker: run.speaker, text: text)
+            }
+        }
+    }
+
+    /// One voice's lines in a row, as a paragraph.
+    static func paragraphs(_ lines: [SpokenLine]) -> [(speaker: Int, lines: [SpokenLine])] {
+        var out: [(speaker: Int, lines: [SpokenLine])] = []
+        for line in lines {
+            if out.last?.speaker == line.speaker { out[out.count - 1].lines.append(line) } else { out.append((line.speaker, [line])) }
+        }
+        return out
+    }
 
     /// What each voice is called: the name it was given, else "You" when it
     /// is the only voice on the microphone, else the guest when it is the only
@@ -70,11 +135,12 @@ enum Speakers {
     }
 
     static func label(_ words: [Transcript.Word], _ turns: [SpeakerTurn], names: [Int: String] = [:]) -> String {
-        var paragraphs: [(speaker: Int, words: [String])] = []
-        for (word, speaker) in zip(words, assign(words, turns)) {
-            if paragraphs.last?.speaker == speaker { paragraphs[paragraphs.count - 1].words.append(word.text) } else { paragraphs.append((speaker, [word.text])) }
-        }
-        return paragraphs.map { "\(name($0.speaker, names)): \($0.words.joined(separator: " "))" }.joined(separator: "\n\n")
+        label(lines(words, turns), names: names)
+    }
+
+    /// "Speaker 1: …", a paragraph each time the voice changes.
+    static func label(_ lines: [SpokenLine], names: [Int: String] = [:]) -> String {
+        paragraphs(lines).map { "\(name($0.speaker, names)): \($0.lines.map(\.text).joined(separator: " "))" }.joined(separator: "\n\n")
     }
 
     /// Renumbers a new pass so each voice keeps the number it had in the last
@@ -123,5 +189,13 @@ extension Array {
             if key(self[middle]) < value { low = middle + 1 } else { high = middle }
         }
         return low
+    }
+}
+
+extension [Transcript.Word] {
+    /// The words as the transcript tools take them: each but the first with a
+    /// space in front, so sentences and captions read as spoken.
+    var timed: [TimedWord] {
+        enumerated().map { TimedWord(text: ($0.offset == 0 ? "" : " ") + $0.element.text.trimmingCharacters(in: .whitespaces), start: $0.element.start, end: $0.element.end) }
     }
 }

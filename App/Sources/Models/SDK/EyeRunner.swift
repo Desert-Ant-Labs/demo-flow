@@ -26,6 +26,18 @@ final class EyeRunner: ModelRunner {
         }
     }
 
+    /// Groups of near-duplicates, best first, as indices into `images`. With a
+    /// capture time for every photo, only photos taken close together count.
+    func duplicates(_ images: [CGImage], dates: [Double]?, progress: (Int) -> Void) async throws -> [[Int]] {
+        let eye = eye
+        var analyses: [Analysis] = []
+        for (i, image) in images.enumerated() {
+            progress(i)
+            analyses.append(try await serial.run { try await eye.analyze(image) })
+        }
+        return Eye.duplicates(in: analyses, dates: dates)
+    }
+
     private static func box(_ b: Box) -> PhotoReading.Box {
         .init(x0: b.x0, y0: b.y0, x1: b.x1, y1: b.y1)
     }

@@ -7,7 +7,7 @@ enum About {
     static let homepage = URL(string: "https://desertant.com")!
     static let windowID = "about"
     static let acknowledgementsID = "acknowledgements"
-    static let footer = "Eleven on-device models from Desert Ant Labs, in flows you build. Your recordings, text, and photos never leave this Mac."
+    static let footer = "Thirteen on-device models from Desert Ant Labs, in flows you build. Your recordings, text, and photos never leave this Mac."
 }
 
 struct AboutView: View {

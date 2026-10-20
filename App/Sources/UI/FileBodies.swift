@@ -4,12 +4,13 @@ import UniformTypeIdentifiers
 /// A folder setting: its name, a button to change it, and a way to the Finder.
 struct FolderField: View {
     let path: String?
+    var empty = "No folder yet"
     let choose: () -> Void
 
     var body: some View {
         HStack(spacing: 8) {
             Image(systemName: "folder").foregroundStyle(.secondary)
-            Text(path.map { Samples.url($0).lastPathComponent } ?? "No folder yet")
+            Text(path.map { Samples.url($0).lastPathComponent } ?? empty)
                 .lineLimit(1)
                 .truncationMode(.middle)
                 .foregroundStyle(path == nil ? .secondary : .primary)
@@ -279,9 +280,10 @@ struct FolderBody: View {
 
     var body: some View {
         let p = ParamBinding(node: node, actions: actions)
-        let path = node.params["folder"]?.string
+        let path = node.params["folder"]?.string.flatMap { $0.isEmpty ? nil : $0 }
+        let folder = SaveTo.folder(path, beside: actions.graph.source)
         VStack(alignment: .leading, spacing: 10) {
-            FolderField(path: path) {
+            FolderField(path: path, empty: "Beside the file it runs on") {
                 if let url = chooseFolder() { actions.set(node.id, ["folder": .string(Samples.path(for: url))]) }
             }
             LabeledContent("File name") {
@@ -293,16 +295,16 @@ struct FolderBody: View {
                 Spacer()
                 if let saved { Text(saved).font(.caption).foregroundStyle(.secondary) }
                 Button(working ? "Saving…" : "Save Now") { saveNow() }
-                    .disabled(working || path == nil || state.inputs["value"] == nil)
+                    .disabled(working || folder == nil || state.inputs["value"] == nil)
             }
         }
         .controlSize(.small)
     }
 
     private func saveNow() {
-        guard let path = node.params["folder"]?.string, let value = state.inputs["value"] else { return }
-        let folder = SaveTo.resolve(path)
-        let name = SaveTo.fileName(node.params["name"]?.string ?? "result", a: state.inputs["a"]?.present.first)
+        let source = actions.graph.source
+        guard let folder = SaveTo.folder(node.params["folder"]?.string, beside: source), let value = state.inputs["value"] else { return }
+        let name = SaveTo.fileName(node.params["name"]?.string ?? "result", a: state.inputs["a"]?.present.first, source: source)
         working = true
         Task {
             saved = await fileWork { try FolderWriter.write(value, to: folder, name: name) } summary: {

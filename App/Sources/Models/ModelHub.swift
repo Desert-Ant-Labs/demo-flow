@@ -38,6 +38,8 @@ final class ModelHub {
     nonisolated static let moderator = ModeratorRunner()
     nonisolated static let eye = EyeRunner()
     nonisolated static let who = WhoRunner()
+    nonisolated static let uhm = UhmRunner()
+    nonisolated static let clips = ClipsRunner()
 
     nonisolated static func runner(_ id: ModelID) -> any ModelRunner {
         switch id {
@@ -52,6 +54,8 @@ final class ModelHub {
         case .moderator: moderator
         case .eye: eye
         case .who: who
+        case .uhm: uhm
+        case .clips: clips
         }
     }
 

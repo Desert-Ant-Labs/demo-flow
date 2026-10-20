@@ -34,6 +34,8 @@ enum Theme {
         case "warm-grey": (rgb(0xB7B6B4), ink, inkTag)
         case "slate": (rgb(0x344B5A), cream, rgb(0xFBFAF4, 0.05))
         case "sage": (rgb(0xADB49C), ink, inkTag)
+        case "rosewood": (rgb(0xCC9087), ink, inkTag)
+        case "dusty-pink": (rgb(0xB6969D), ink, inkTag)
         default: (rgb(0xF2F1EB), ink, inkTag)
         }
     }
@@ -89,6 +91,7 @@ func symbol(for type: String) -> String {
     case "join": "text.append"
     case "convert": "arrow.left.arrow.right.square"
     case "readtext": "text.viewfinder"
+    case "captions": "captions.bubble"
     case "gallery": "square.grid.2x2"
     case "table": "tablecells"
     case "view": "checkmark.seal"

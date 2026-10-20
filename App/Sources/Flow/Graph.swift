@@ -23,6 +23,8 @@ struct Edge: Identifiable, Hashable, Sendable {
 struct FlowMeta: Hashable, Sendable {
     var title = ""
     var description = ""
+    /// One line on what the flow is for, as the CLI lists its templates.
+    var summary = ""
     /// Set once someone moves a step by hand. Until then the flow lays itself
     /// out again as its cards grow.
     var arranged = false
@@ -71,6 +73,15 @@ struct Graph: Hashable, Sendable {
         // The same list style as the line naming the models under the title.
         default: return names.dropLast().joined(separator: ", ") + (names.count > 2 ? ", and " : " and ") + names.last!
         }
+    }
+
+    /// The file the flow runs on: its start step's file, or the first of its
+    /// files. Nil while it runs on the app's samples.
+    var source: URL? {
+        guard !runsOnSamples, let start = ordered.first(where: { $0.def?.category == .input }),
+              let path = start.params["file"]?.string ?? start.params["files"]?.strings.first, !path.isEmpty
+        else { return nil }
+        return Samples.url(path)
     }
 
     /// Whether a start step runs on the app's samples rather than on files of

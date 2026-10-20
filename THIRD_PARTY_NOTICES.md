@@ -10,13 +10,17 @@ The license is free below 100,000 monthly active devices per platform, for each 
 
 | Package | What Flow uses it for |
 |---|---|
-| [`desert-ant-core`](https://github.com/Desert-Ant-Labs/desert-ant-core) | The eleven models: Voz, Clear, Ear, Redact, Gist, Emo, Tongue, Shapes, Moderator, Eye, and Who |
+| [`desert-ant-core`](https://github.com/Desert-Ant-Labs/desert-ant-core) | The thirteen models: Voz, Clear, Ear, Redact, Gist, Emo, Tongue, Shapes, Moderator, Eye, Who, Uhm, and Clips |
 
 The package includes Tongue's weights. Flow downloads the other models from Hugging Face the first time a flow uses them. The notices for the weights each model was trained from are in [`LICENSES/desert-ant-core-notices.md`](LICENSES/desert-ant-core-notices.md) and on each model's Hugging Face page.
 
 ## Desert Ant Labs brand kit
 
 [`desert-ant-swift`](https://github.com/Desert-Ant-Labs/desert-ant-swift) (product `DesertAntUI`) draws the Desert Ant mark, the loader, the colors, and the attribution line. Its code is MIT licensed. The Desert Ant Labs name and mark are trademarks, and none of these licenses grant rights to them.
+
+## Inclusive Sans
+
+The Clips step burns captions in Inclusive Sans, by the Inclusive Sans Project Authors, shipped as `App/Resources/Fonts/InclusiveSans-Regular.ttf` and `App/Resources/Fonts/InclusiveSans-Bold.ttf`: the Regular (400) and Bold (700) instances of the variable font, version 2.004. Licensed under the SIL Open Font License 1.1, in [`LICENSES/InclusiveSans-OFL.txt`](LICENSES/InclusiveSans-OFL.txt). Source: https://github.com/LivKing/Inclusive-Sans
 
 ## Swift packages
 

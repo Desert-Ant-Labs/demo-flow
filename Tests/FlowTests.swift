@@ -46,6 +46,34 @@ private let modelTests = Testing.ConditionTrait.enabled(
         #expect(Graph().isUntitled && !graph.isUntitled)
     }
 
+    /// The CLI's templates leave out ids and most wires.
+    @Test func readsAFlowFromTheCLI() throws {
+        let text = """
+        flow: 1
+        title: Who said what
+        summary: Name the speaker of each line.
+        steps:
+          - type: audio
+          - type: voz
+          - type: who
+          - type: folder
+        """
+        let graph = try FlowFile.read(text)
+        #expect(graph.nodes.map(\.id) == ["audio", "voz", "who", "folder"])
+        let wires = Set(graph.edges.map { "\($0.source).\($0.sourceHandle) > \($0.target).\($0.targetHandle)" })
+        #expect(wires == ["audio.audio > voz.audio", "audio.audio > who.audio", "voz.words > who.words", "who.text > folder.value"])
+        #expect(try FlowFile.read(FlowFile.write(graph)).meta.summary == "Name the speaker of each line.")
+    }
+
+    /// Flow writes every wire, so an input left empty stays empty.
+    @Test func aSavedFlowKeepsItsEmptyInputs() throws {
+        var graph = try FlowFile.read("flow: 1\nsteps:\n  - type: audio\n  - type: voz\n  - type: who\n")
+        graph.edges.removeAll { $0.targetHandle == "words" }
+        let again = try FlowFile.read(FlowFile.write(graph))
+        #expect(!again.edges.contains { $0.targetHandle == "words" })
+        #expect(again.edges.count == graph.edges.count)
+    }
+
     @Test func notAFlowIsRefused() {
         #expect(throws: (any Error).self) { try FlowFile.read("hello: world") }
     }

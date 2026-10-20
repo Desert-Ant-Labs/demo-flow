@@ -1,8 +1,8 @@
 import Foundation
 
-/// The eleven models, with the copy from their brand cards.
+/// The models, with the copy from their brand cards.
 enum ModelID: String, CaseIterable, Identifiable, Sendable {
-    case voz, clear, ear, redact, gist, emo, tongue, shapes, moderator, eye, who
+    case voz, clear, ear, redact, gist, emo, tongue, shapes, moderator, eye, who, uhm, clips
 
     var id: String { rawValue }
 
@@ -31,7 +31,9 @@ enum ModelID: String, CaseIterable, Identifiable, Sendable {
         case .shapes: Info(name: "Shapes", kind: "Shape recognition", task: "Sketch to shape", about: "Turns a rough stroke into the clean shape it was meant to be.", color: "sand", mb: 1.2)
         case .moderator: Info(name: "Moderator", kind: "Content moderation", task: "Image safety", about: "Checks whether a photo is safe to show.", color: "warm-grey", mb: 9)
         case .eye: Info(name: "Eye", kind: "Image scoring", task: "Photo understanding", about: "Reads a photo: what it shows, the people and faces in it, and whether it is worth keeping.", color: "slate", mb: 63)
-        case .who: Info(name: "Who", kind: "Who said what", task: "Speaker labels", about: "Tells the voices in a recording apart, with when each one speaks.", color: "sage", mb: 84)
+        case .who: Info(name: "Who", kind: "Who said what", task: "Speaker labels", about: "Tells the voices in a recording apart, with when each one speaks.", color: "rosewood", mb: 84)
+        case .uhm: Info(name: "Uhm", kind: "Filler-word detection", task: "Filler words", about: "Finds every uh, um, and hmm in a recording, with its time.", color: "sage", mb: 45)
+        case .clips: Info(name: "Clips", kind: "Clip selection", task: "Highlight clips", about: "Picks the moments worth sharing from a talk, a podcast, or a meeting.", color: "dusty-pink", mb: 284)
         }
     }
 

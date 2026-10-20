@@ -94,6 +94,10 @@ enum ListOp: String, CaseIterable, Sendable {
     /// Sorts, which keep the whole list unless given a number.
     var keeps: Bool { [.desc, .asc, .sort].contains(self) }
 
+    /// The number a setting of `n` stands for: 0 keeps a sorted list whole
+    /// and takes 3 for the rest.
+    func count(_ n: Int) -> Int { n > 0 ? n : keeps ? 0 : 3 }
+
     func run(_ list: [Value?], n: Int, by: [Value?]?) -> Value? {
         let present = list.compactMap { $0 }
         let n = max(0, n)
@@ -158,7 +162,7 @@ enum LogicSteps {
         category: .logic,
         inputs: [Port(id: "value", type: .any, label: "Value"), Port(id: "test", type: .any, label: "Check", optional: true)],
         outputs: [Port(id: "yes", type: .any, label: "If"), Port(id: "no", type: .any, label: "Else")],
-        defaults: ["op": "equals", "operand": "en"], noMap: true
+        defaults: ["op": "equals", "operand": ""], noMap: true
     ) { run in
         let op = Condition(rawValue: run.params["op"]?.string ?? "") ?? .equals
         let operand = run.params["operand"]?.string ?? ""
@@ -206,11 +210,10 @@ enum LogicSteps {
         category: .logic,
         inputs: [Port(id: "items", type: .any, label: "List", list: true), Port(id: "by", type: .any, label: "By", list: true, optional: true)],
         outputs: [Port(id: "result", type: .any, label: "Result")],
-        defaults: ["op": "firstN", "n": 3], noMap: true
+        defaults: ["op": "firstN", "n": 0], noMap: true
     ) { run in
         let op = ListOp(rawValue: run.params["op"]?.string ?? "") ?? .count
-        let n = run.params["n"]?.int ?? (op.keeps ? 0 : 1)
-        let result = op.run(run.inputs["items"]?.items ?? [], n: n, by: run.inputs["by"]?.items)
+        let result = op.run(run.inputs["items"]?.items ?? [], n: op.count(run.params["n"]?.int ?? 0), by: run.inputs["by"]?.items)
         return result.map { ["result": $0] } ?? [:]
     }
 
@@ -232,7 +235,7 @@ enum LogicSteps {
     }
 
     static let template = StepDef(
-        type: "template", title: "Template", description: "Combine values into text with {{a}}, {{b}}, {{c}}, and {{date}}",
+        type: "template", title: "Template", description: "Combine values into text with {{a}}, {{b}}, {{c}}, {{date}}, and {{time}}",
         category: .logic,
         inputs: ["a", "b", "c"].map { Port(id: $0, type: .any, label: $0, optional: true) },
         outputs: [Port(id: "text", type: .text, label: "Text")],
@@ -261,7 +264,7 @@ enum LogicSteps {
         outputs: [Port(id: "text", type: .text, label: "Text")],
         defaults: ["separator": "newline"], noMap: true
     ) { run in
-        let sep = ["newline": "\n", "space": " ", "comma": ", "][run.params["separator"]?.string ?? "newline"] ?? "\n"
+        let sep = ["newline": "\n", "space": " ", "comma": ", ", "paragraph": "\n\n"][run.params["separator"]?.string ?? "newline"] ?? "\n"
         return ["text": .text((run.inputs["items"]?.present ?? []).map(\.asText).joined(separator: sep))]
     }
 

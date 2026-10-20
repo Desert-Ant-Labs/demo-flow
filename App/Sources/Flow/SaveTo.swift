@@ -22,11 +22,24 @@ enum SaveTo {
         return root.appending(path: trimmed, directoryHint: .isDirectory)
     }
 
+    /// Where a Save to folder step writes: the folder it names, or beside the
+    /// file the flow runs on.
+    static func folder(_ setting: String?, beside source: URL?) -> URL? {
+        guard let setting, !setting.isEmpty else { return source?.deletingLastPathComponent() }
+        return resolve(setting)
+    }
+
     /// A file name from a Save to folder step's pattern: `{{a}}` from the
-    /// value given, the date and time filled in, and no slashes or colons,
-    /// which a name cannot hold.
-    static func fileName(_ pattern: String, a: Value?) -> String {
-        Placeholders.fill(pattern) { $0 == "a" ? a.asText : nil }
+    /// value given, `{{name}}` from the file the flow runs on, the date and
+    /// time filled in, and no slashes or colons, which a name cannot hold.
+    static func fileName(_ pattern: String, a: Value?, source: URL?) -> String {
+        Placeholders.fill(pattern) {
+            switch $0 {
+            case "a": a.asText
+            case "name": source?.deletingPathExtension().lastPathComponent ?? "result"
+            default: nil
+            }
+        }
             .replacingOccurrences(of: "/", with: "-")
             .replacingOccurrences(of: ":", with: "-")
             .trimmingCharacters(in: .whitespacesAndNewlines)

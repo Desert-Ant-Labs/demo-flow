@@ -31,7 +31,7 @@ struct StepBody: View {
     nonisolated static func has(_ type: String) -> Bool {
         ["call", "watch", "schedule", "shortcut", "text", "textlist", "audio", "record", "image", "photos", "sketch", "whiteboard", "cleanboard", "if", "list",
          "template", "join", "ask", "convert", "readtext", "table", "gallery", "view", "folder", "files", "rename", "copy", "speak", "clear", "gist", "emo",
-         "moderator"].contains(type)
+         "moderator", "redact", "who", "clips"].contains(type)
     }
 
     var body: some View {
@@ -102,7 +102,7 @@ struct StepBody: View {
         case "template": TemplateBody(node: node)
         case "join":
             Picker("", selection: p.text("separator", "newline")) {
-                Text("New lines").tag("newline"); Text("Spaces").tag("space"); Text("Commas").tag("comma")
+                Text("New lines").tag("newline"); Text("Blank lines").tag("paragraph"); Text("Spaces").tag("space"); Text("Commas").tag("comma")
             }
             .labelsHidden()
         case "table": TableBody(node: node, state: state)
@@ -143,6 +143,16 @@ struct StepBody: View {
                 Slider(value: p.number("threshold", 0.5), in: 0.3...0.95, step: 0.05)
                 Text(String(format: "%.2f", node.params["threshold"]?.number ?? 0.5)).font(.caption.monospacedDigit())
             }
+        case "redact":
+            HStack {
+                Text("Mask at")
+                Slider(value: p.number("confidence", 0.6), in: 0.3...0.95, step: 0.05)
+                Text(String(format: "%.2f", node.params["confidence"]?.number ?? 0.6)).font(.caption.monospacedDigit())
+            }
+        case "who":
+            TextField("Names, in order of speaking", text: p.text("names"))
+                .textFieldStyle(.roundedBorder)
+        case "clips": ClipsBody(node: node)
         default:
             EmptyView()
         }
@@ -276,8 +286,11 @@ struct ListBody: View {
             .labelsHidden()
             .fixedSize()
             if op.takesNumber {
-                TextField("", value: p.number("n", 1), format: .number)
-                    .textFieldStyle(.roundedBorder).frame(width: 50)
+                TextField("", value: Binding(
+                    get: { Double(op.count(node.params["n"]?.int ?? 0)) },
+                    set: { actions.set(node.id, ["n": .number(max(1, $0))]) }
+                ), format: .number)
+                .textFieldStyle(.roundedBorder).frame(width: 50)
             }
             if op.keeps {
                 Text("Keep")
@@ -288,5 +301,44 @@ struct ListBody: View {
                 .textFieldStyle(.roundedBorder).frame(width: 50)
             }
         }
+    }
+}
+
+/// How many clips to cut, and how their captions look.
+struct ClipsBody: View {
+    let node: Node
+    @Environment(\.flowActions) private var actions
+
+    var body: some View {
+        let p = ParamBinding(node: node, actions: actions)
+        let count = node.params["count"]?.int ?? 0
+        VStack(alignment: .leading, spacing: 8) {
+            Stepper(value: Binding(get: { count }, set: { actions.set(node.id, ["count": $0 > 0 ? .number(Double($0)) : .null]) }), in: 0...20) {
+                Text(count == 0 ? "As many as the talk has" : count == 1 ? "1 clip" : "\(count) clips")
+            }
+            Picker("Captions", selection: p.text("captions", "off")) {
+                Text("None").tag("off"); Text("Burned in").tag("burn"); Text("SRT beside each clip").tag("srt")
+            }
+            if node.params["captions"]?.string == "burn" {
+                Picker("Look", selection: p.text("style", "shadow")) {
+                    Text("Shadow").tag("shadow"); Text("Outline").tag("outline"); Text("Box").tag("box")
+                }
+                Picker("Position", selection: p.text("position", "bottom")) {
+                    Text("Bottom").tag("bottom"); Text("Center").tag("center"); Text("Top").tag("top")
+                }
+                ColorPicker("Color", selection: Binding(
+                    get: { Color(cgColor: CaptionStyle.color(node.params["color"]?.string ?? "white") ?? .white) },
+                    set: { actions.set(node.id, ["color": .string(hex($0))]) }
+                ), supportsOpacity: false)
+                Picker("Quality", selection: p.text("quality", "high")) {
+                    Text("High").tag("high"); Text("Medium").tag("medium"); Text("Small file").tag("low")
+                }
+            }
+        }
+    }
+
+    private func hex(_ color: Color) -> String {
+        let c = NSColor(color).usingColorSpace(.sRGB) ?? .white
+        return String(format: "#%02x%02x%02x", Int(c.redComponent * 255), Int(c.greenComponent * 255), Int(c.blueComponent * 255))
     }
 }

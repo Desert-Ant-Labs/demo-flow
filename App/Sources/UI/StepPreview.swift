@@ -51,6 +51,23 @@ struct StepPreview: View {
             }
         case "eye":
             EyePreview(node: node, state: state)
+        case "uhm":
+            let fillers = o["fillers"]?.present ?? []
+            VStack(alignment: .leading, spacing: 6) {
+                Text(fillers.count == 1 ? "1 filler word" : "\(fillers.count) filler words").font(.title3.weight(.semibold))
+                ForEach(Array(fillers.prefix(5).enumerated()), id: \.offset) { _, f in
+                    Text("\(f["type"].asText) at \(clock(f["start"]?.asNumber ?? 0))").foregroundStyle(.secondary)
+                }
+            }
+        case "clips":
+            ItemRows(items: o["clips"]?.items ?? []) { clip in
+                VStack(alignment: .leading, spacing: 2) {
+                    if case .file(let url)? = clip["file"] { FileLabel(url: url) }
+                    Text("\(clock(clip["durationSec"]?.asNumber ?? 0)), \(clip["text"].asText)").lineLimit(2).foregroundStyle(.secondary)
+                }
+            }
+        case "duplicates":
+            Text("\(o["keep"]?.present.count ?? 0) to keep, \(o["others"]?.present.count ?? 0) near-duplicates").foregroundStyle(.secondary)
         case "if":
             if state.inputs["value"]?.isStream == true {
                 Text("\(o["yes"]?.present.count ?? 0) to If, \(o["no"]?.present.count ?? 0) to Else").foregroundStyle(.secondary)
@@ -180,4 +197,9 @@ struct EyePreview: View {
         default: v!.asText
         }
     }
+}
+
+/// Seconds as minutes and seconds, as 1:05.
+private func clock(_ seconds: Double) -> String {
+    Duration.seconds(seconds).formatted(.time(pattern: .minuteSecond))
 }

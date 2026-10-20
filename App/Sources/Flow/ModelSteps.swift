@@ -14,7 +14,7 @@ private func scoredList(_ items: [(label: String, score: Double)], key: String =
 /// Redact finds more names sentence by sentence than in a long passage, so it
 /// runs per sentence, and the placeholders are numbered across the whole text:
 /// the same name keeps the same tag everywhere.
-private func redactBySentence(_ text: String, context: RunContext) async throws -> (text: String, items: [Redacted.Item]) {
+private func redactBySentence(_ text: String, confidence: Double, context: RunContext) async throws -> (text: String, items: [Redacted.Item]) {
     var tags: [String: String] = [:]
     var perLabel: [String: Int] = [:]
     var items: [Redacted.Item] = []
@@ -29,7 +29,7 @@ private func redactBySentence(_ text: String, context: RunContext) async throws 
     for end in ends {
         let segment = String(text[start..<end])
         start = end
-        let found = try await context.timed { try await ModelHub.redact.find(in: segment) }
+        let found = try await context.timed { try await ModelHub.redact.find(in: segment, confidence: confidence) }
         var at = segment.startIndex
         for item in found.items.sorted(by: { $0.range.lowerBound < $1.range.lowerBound }) where item.range.lowerBound >= at {
             let label = snake(item.label)
@@ -50,6 +50,14 @@ private func redactBySentence(_ text: String, context: RunContext) async throws 
         out += segment[at...]
     }
     return (out, items)
+}
+
+/// Words with times, as Voz gives them.
+func timedWords(_ value: Value?) -> [Transcript.Word] {
+    (value?.present ?? []).compactMap { w in
+        guard let start = w["start"]?.asNumber, let end = w["end"]?.asNumber else { return nil }
+        return Transcript.Word(text: w["text"].asText, start: start, end: end)
+    }
 }
 
 /// givenName as GIVEN_NAME, as Redact writes its placeholders.
@@ -171,7 +179,7 @@ actor EyeReadings {
 }
 
 enum ModelSteps {
-    static let all: [StepDef] = [voz, who, clear, ear, redact, tongue, gist, emo, shapes, moderator, eye]
+    static let all: [StepDef] = [voz, who, clear, uhm, ClipsStep.def, ear, redact, tongue, gist, emo, shapes, moderator, eye, duplicates]
 
     static let voz = StepDef(
         type: "voz", title: "Voz", description: "Speech to text, with word timings",
@@ -197,23 +205,36 @@ enum ModelSteps {
                  Port(id: "words", type: .any, label: "Words with timings", list: true, optional: true)],
         outputs: [Port(id: "text", type: .text, label: "Who said what"),
                   Port(id: "turns", type: .any, label: "Turns", each: "turn"),
-                  Port(id: "speakers", type: .any, label: "Speakers")],
-        pick: Pick(defaults: ["text"])
+                  Port(id: "speakers", type: .any, label: "Speakers"),
+                  Port(id: "lines", type: .any, label: "Lines, with times"),
+                  Port(id: "paragraphs", type: .text, label: "Paragraphs", each: "paragraph"),
+                  Port(id: "speaker", type: .text, label: "Speaker of each paragraph", each: "paragraph")],
+        defaults: ["names": ""], pick: Pick(defaults: ["text"])
     ) { run in
         guard let audio = run.inputs["audio"]?.audio else { throw StepError("No audio") }
         let turns = try await run.context.timed { try await ModelHub.who.diarize(audio.samples, sampleRate: audio.sampleRate) }
-        let words = (run.inputs["words"]?.present ?? []).compactMap { w -> Transcript.Word? in
-            guard let text = w["text"]?.asText, let start = w["start"]?.asNumber, let end = w["end"]?.asNumber else { return nil }
-            return Transcript.Word(text: text, start: start, end: end)
-        }
-        let text = words.isEmpty
-            ? turns.map { "\(Speakers.name($0.speaker)): \(Duration.seconds($0.start).formatted(.time(pattern: .minuteSecond))) to \(Duration.seconds($0.end).formatted(.time(pattern: .minuteSecond)))" }.joined(separator: "\n")
-            : Speakers.label(words, turns)
-        return [
-            "text": .text(text),
-            "turns": .list(turns.map { .record([("speaker", .text(Speakers.name($0.speaker))), ("start", .number($0.start)), ("end", .number($0.end))]) }),
+        let names = Speakers.names(listed: run.params["names"]?.string ?? "")
+        let name = { Speakers.name($0, names) }
+        let joined = Speakers.join(turns)
+        var out: Outputs = [
+            "turns": .list(joined.map { .record([("speaker", .text(name($0.speaker))), ("start", .number($0.start)), ("end", .number($0.end))]) }),
             "speakers": .number(Double(Set(turns.map(\.speaker)).count)),
         ]
+        let words = timedWords(run.inputs["words"])
+        guard !words.isEmpty else {
+            let clock = { Duration.seconds($0).formatted(.time(pattern: .minuteSecond)) }
+            out["text"] = .text(joined.map { "\(name($0.speaker)): \(clock($0.start)) to \(clock($0.end))" }.joined(separator: "\n"))
+            return out
+        }
+        let lines = Speakers.lines(words, turns)
+        let paragraphs = Speakers.paragraphs(lines).map { (speaker: name($0.speaker), text: $0.lines.map(\.text).joined(separator: " ")) }
+        out["text"] = .text(Speakers.label(lines, names: names))
+        out["paragraphs"] = .list(paragraphs.map { .text($0.text) })
+        out["speaker"] = .list(paragraphs.map { .text($0.speaker) })
+        out["lines"] = .list(lines.map {
+            .record([("speaker", .text(name($0.speaker))), ("start", .number($0.start)), ("end", .number($0.end)), ("text", .text($0.text))])
+        })
+        return out
     }
 
     static let clear = StepDef(
@@ -227,22 +248,47 @@ enum ModelSteps {
         let samples = try Media.resample(audio, to: 48_000)
         let loudness = run.params["loudness"]?.string ?? "podcast"
         let r = try await run.context.timed { try await ModelHub.clear.enhance(samples, loudness: loudness) }
-        return ["audio": .audio(AudioClip(samples: r.samples, sampleRate: r.sampleRate, name: "Clean \(audio.name)"))]
+        let clean = AudioClip(samples: r.samples, sampleRate: r.sampleRate, name: "Clean \(audio.name)")
+        let stem = (audio.file?.deletingPathExtension().lastPathComponent ?? audio.name) + "_clear"
+        return ["audio": .audio(try await Media.written(clean, stem: stem, picture: audio.file))]
     }
 
     private static func language(_ g: LanguageGuess) -> Outputs {
         [
             "language": .text(g.language),
             "reliable": .bool(g.reliable),
-            "candidates": .list(g.candidates.map { .record([("language", .text($0.language)), ("probability", .number($0.probability))]) }),
+            "candidates": .list(g.candidates.prefix(3).map { .record([("language", .text($0.language)), ("probability", .number($0.probability))]) }),
         ]
     }
+
+    static let uhm = StepDef(
+        type: "uhm", title: "Uhm", description: "Every uh, um, and hmm, with times",
+        category: .model, model: .uhm,
+        inputs: [Port(id: "audio", type: .audio, label: "Audio")],
+        outputs: [Port(id: "fillers", type: .any, label: "Filler words", each: "filler"), Port(id: "count", type: .any, label: "Count")],
+        pick: Pick(defaults: ["fillers", "count"])
+    ) { run in
+        guard let audio = run.inputs["audio"]?.audio else { throw StepError("No audio") }
+        let samples = try Media.resample(audio, to: 16_000)
+        let fillers = try await run.context.timed { try await ModelHub.uhm.fillers(samples) }
+        return [
+            "fillers": .list(fillers.map {
+                .record([("type", .text($0.type)), ("start", .number($0.start)), ("end", .number($0.end)), ("confidence", .number($0.confidence))])
+            }),
+            "count": .number(Double(fillers.count)),
+        ]
+    }
+
+    private static let languageOutputs = [
+        Port(id: "language", type: .text, label: "Language"), Port(id: "reliable", type: .any, label: "Is sure"),
+        Port(id: "candidates", type: .any, label: "Top guesses"),
+    ]
 
     static let ear = StepDef(
         type: "ear", title: "Ear", description: "Which language is spoken",
         category: .model, model: .ear,
         inputs: [Port(id: "audio", type: .audio, label: "Audio")],
-        outputs: [Port(id: "language", type: .text, label: "Language"), Port(id: "reliable", type: .any, label: "Is sure")],
+        outputs: languageOutputs,
         pick: Pick(defaults: ["language"])
     ) { run in
         guard let audio = run.inputs["audio"]?.audio else { throw StepError("No audio") }
@@ -255,9 +301,10 @@ enum ModelSteps {
         category: .model, model: .redact,
         inputs: [Port(id: "text", type: .text, label: "Text")],
         outputs: [Port(id: "text", type: .text, label: "Redacted text"), Port(id: "found", type: .any, label: "Result"), Port(id: "count", type: .any, label: "Count")],
-        pick: Pick(defaults: ["text"])
+        defaults: ["confidence": 0.6], pick: Pick(defaults: ["text"])
     ) { run in
-        let r = try await redactBySentence(run.inputs["text"].asText, context: run.context)
+        let confidence = run.params["confidence"]?.number ?? 0.6
+        let r = try await redactBySentence(run.inputs["text"].asText, confidence: confidence, context: run.context)
         return [
             "text": .text(r.text),
             "found": .list(r.items.map {
@@ -272,7 +319,7 @@ enum ModelSteps {
         type: "tongue", title: "Tongue", description: "Which language is written",
         category: .model, model: .tongue,
         inputs: [Port(id: "text", type: .text, label: "Text")],
-        outputs: [Port(id: "language", type: .text, label: "Language"), Port(id: "reliable", type: .any, label: "Is sure")],
+        outputs: languageOutputs,
         pick: Pick(defaults: ["language"])
     ) { run in
         let text = run.inputs["text"].asText
@@ -357,6 +404,31 @@ enum ModelSteps {
         var out: Outputs = [:]
         for field in EyeFields.all { out[field.id] = field.read(r) }
         return out
+    }
+}
+
+extension ModelSteps {
+    static let duplicates = StepDef(
+        type: "duplicates", title: "Duplicates", description: "The photos to keep from sets of near-duplicates, and the rest",
+        category: .logic, model: .eye,
+        inputs: [Port(id: "photos", type: .image, label: "Photos", list: true)],
+        outputs: [Port(id: "keep", type: .image, label: "Keep", each: "photo"), Port(id: "others", type: .image, label: "The rest", each: "photo"),
+                  Port(id: "groups", type: .any, label: "Groups")],
+        noMap: true, pick: Pick(defaults: ["keep", "others"])
+    ) { run in
+        let photos = (run.inputs["photos"]?.present ?? []).compactMap(\.photo)
+        let dates = photos.map { $0.file.flatMap(Media.captureDate) }
+        let groups = try await run.context.timed {
+            try await ModelHub.eye.duplicates(photos.map(\.image), dates: dates.allSatisfy { $0 != nil } ? dates.compactMap { $0 } : nil) {
+                run.context.progress($0, photos.count)
+            }
+        }
+        let others = Set(groups.flatMap { $0.dropFirst() })
+        return [
+            "keep": .list(photos.indices.filter { !others.contains($0) }.map { .image(photos[$0]) }),
+            "others": .list(photos.indices.filter(others.contains).map { .image(photos[$0]) }),
+            "groups": .list(groups.map { .list($0.map { .image(photos[$0]) }) }),
+        ]
     }
 }
 

@@ -1,0 +1,876 @@
+{
+ "coreVersion": "4.1.0",
+ "flowSteps": [
+  {
+   "inputs": [],
+   "outputs": [
+    {
+     "id": "text",
+     "type": "text"
+    },
+    {
+     "each": true,
+     "id": "lines",
+     "type": "text"
+    },
+    {
+     "each": true,
+     "id": "sentences",
+     "type": "text"
+    },
+    {
+     "each": true,
+     "id": "paragraphs",
+     "type": "text"
+    }
+   ],
+   "settings": {
+    "text": ""
+   },
+   "type": "text"
+  },
+  {
+   "inputs": [],
+   "outputs": [
+    {
+     "each": true,
+     "id": "items",
+     "type": "any"
+    }
+   ],
+   "settings": {
+    "items": []
+   },
+   "type": "textlist"
+  },
+  {
+   "inputs": [],
+   "outputs": [
+    {
+     "id": "audio",
+     "type": "audio"
+    }
+   ],
+   "settings": {
+    "file": null
+   },
+   "type": "audio"
+  },
+  {
+   "inputs": [],
+   "outputs": [
+    {
+     "id": "image",
+     "type": "image"
+    }
+   ],
+   "settings": {
+    "file": null
+   },
+   "type": "image"
+  },
+  {
+   "inputs": [],
+   "outputs": [
+    {
+     "each": true,
+     "id": "photos",
+     "type": "image"
+    }
+   ],
+   "settings": {
+    "files": []
+   },
+   "type": "photos"
+  },
+  {
+   "inputs": [],
+   "outputs": [
+    {
+     "each": true,
+     "id": "files",
+     "type": "any"
+    }
+   ],
+   "settings": {
+    "files": [],
+    "folders": []
+   },
+   "type": "files"
+  },
+  {
+   "inputs": [],
+   "outputs": [
+    {
+     "each": true,
+     "id": "files",
+     "type": "any"
+    },
+    {
+     "each": true,
+     "id": "photos",
+     "type": "image"
+    },
+    {
+     "each": true,
+     "id": "audio",
+     "type": "audio"
+    },
+    {
+     "each": true,
+     "id": "text",
+     "type": "text"
+    }
+   ],
+   "settings": {
+    "files": [],
+    "folder": ""
+   },
+   "type": "watch"
+  },
+  {
+   "inputs": [
+    {
+     "id": "audio",
+     "type": "audio"
+    }
+   ],
+   "outputs": [
+    {
+     "id": "text",
+     "type": "text"
+    },
+    {
+     "each": true,
+     "id": "sentences",
+     "type": "text"
+    },
+    {
+     "id": "words",
+     "type": "any"
+    }
+   ],
+   "settings": {},
+   "type": "voz"
+  },
+  {
+   "inputs": [
+    {
+     "id": "audio",
+     "type": "audio"
+    },
+    {
+     "id": "words",
+     "list": true,
+     "optional": true,
+     "type": "any"
+    }
+   ],
+   "outputs": [
+    {
+     "id": "text",
+     "type": "text"
+    },
+    {
+     "each": true,
+     "id": "turns",
+     "type": "any"
+    },
+    {
+     "id": "speakers",
+     "type": "any"
+    },
+    {
+     "id": "lines",
+     "type": "any"
+    },
+    {
+     "each": true,
+     "id": "paragraphs",
+     "type": "text"
+    },
+    {
+     "each": true,
+     "id": "speaker",
+     "type": "text"
+    }
+   ],
+   "settings": {
+    "names": ""
+   },
+   "type": "who"
+  },
+  {
+   "inputs": [
+    {
+     "id": "audio",
+     "type": "audio"
+    }
+   ],
+   "outputs": [
+    {
+     "id": "audio",
+     "type": "audio"
+    }
+   ],
+   "settings": {
+    "loudness": "podcast"
+   },
+   "type": "clear"
+  },
+  {
+   "inputs": [
+    {
+     "id": "audio",
+     "type": "audio"
+    }
+   ],
+   "outputs": [
+    {
+     "id": "language",
+     "type": "text"
+    },
+    {
+     "id": "reliable",
+     "type": "any"
+    },
+    {
+     "id": "candidates",
+     "type": "any"
+    }
+   ],
+   "settings": {},
+   "type": "ear"
+  },
+  {
+   "inputs": [
+    {
+     "id": "text",
+     "type": "text"
+    }
+   ],
+   "outputs": [
+    {
+     "id": "language",
+     "type": "text"
+    },
+    {
+     "id": "reliable",
+     "type": "any"
+    },
+    {
+     "id": "candidates",
+     "type": "any"
+    }
+   ],
+   "settings": {},
+   "type": "tongue"
+  },
+  {
+   "inputs": [
+    {
+     "id": "text",
+     "type": "text"
+    }
+   ],
+   "outputs": [
+    {
+     "id": "text",
+     "type": "text"
+    },
+    {
+     "id": "found",
+     "type": "any"
+    },
+    {
+     "id": "count",
+     "type": "any"
+    }
+   ],
+   "settings": {
+    "confidence": 0.6
+   },
+   "type": "redact"
+  },
+  {
+   "inputs": [
+    {
+     "id": "text",
+     "type": "text"
+    }
+   ],
+   "outputs": [
+    {
+     "id": "top",
+     "type": "text"
+    },
+    {
+     "id": "topics",
+     "type": "any"
+    }
+   ],
+   "settings": {
+    "limit": 3
+   },
+   "type": "gist"
+  },
+  {
+   "inputs": [
+    {
+     "id": "text",
+     "type": "text"
+    }
+   ],
+   "outputs": [
+    {
+     "id": "emoji",
+     "type": "text"
+    },
+    {
+     "id": "list",
+     "type": "any"
+    }
+   ],
+   "settings": {
+    "limit": 3
+   },
+   "type": "emo"
+  },
+  {
+   "inputs": [
+    {
+     "id": "audio",
+     "type": "audio"
+    }
+   ],
+   "outputs": [
+    {
+     "each": true,
+     "id": "fillers",
+     "type": "any"
+    },
+    {
+     "id": "count",
+     "type": "any"
+    }
+   ],
+   "settings": {},
+   "type": "uhm"
+  },
+  {
+   "inputs": [
+    {
+     "id": "words",
+     "list": true,
+     "type": "any"
+    },
+    {
+     "id": "turns",
+     "list": true,
+     "optional": true,
+     "type": "any"
+    }
+   ],
+   "outputs": [
+    {
+     "id": "srt",
+     "type": "text"
+    },
+    {
+     "id": "vtt",
+     "type": "text"
+    }
+   ],
+   "settings": {},
+   "type": "captions"
+  },
+  {
+   "inputs": [
+    {
+     "id": "audio",
+     "type": "audio"
+    },
+    {
+     "id": "words",
+     "list": true,
+     "type": "any"
+    }
+   ],
+   "outputs": [
+    {
+     "id": "files",
+     "type": "any"
+    },
+    {
+     "each": true,
+     "id": "clips",
+     "type": "any"
+    }
+   ],
+   "settings": {
+    "align": "center",
+    "captions": "off",
+    "color": "white",
+    "count": null,
+    "font": null,
+    "lines": null,
+    "position": "bottom",
+    "quality": "high",
+    "size": null,
+    "style": "shadow",
+    "weight": "bold",
+    "words": null
+   },
+   "type": "clips"
+  },
+  {
+   "inputs": [
+    {
+     "id": "image",
+     "type": "image"
+    }
+   ],
+   "outputs": [
+    {
+     "id": "subject",
+     "type": "any"
+    },
+    {
+     "id": "scenes",
+     "type": "any"
+    },
+    {
+     "id": "type",
+     "type": "any"
+    },
+    {
+     "id": "animal",
+     "type": "any"
+    },
+    {
+     "id": "people",
+     "type": "any"
+    },
+    {
+     "id": "pets",
+     "type": "any"
+    },
+    {
+     "id": "keeper",
+     "type": "any"
+    },
+    {
+     "id": "reason",
+     "type": "any"
+    },
+    {
+     "id": "aesthetic",
+     "type": "any"
+    },
+    {
+     "id": "cover",
+     "type": "any"
+    },
+    {
+     "id": "sharp",
+     "type": "any"
+    },
+    {
+     "id": "blur",
+     "type": "any"
+    },
+    {
+     "id": "sensitive",
+     "type": "any"
+    },
+    {
+     "id": "faces",
+     "type": "any"
+    },
+    {
+     "id": "smile",
+     "type": "any"
+    },
+    {
+     "id": "eyesOpen",
+     "type": "any"
+    },
+    {
+     "id": "looking",
+     "type": "any"
+    },
+    {
+     "id": "expression",
+     "type": "any"
+    },
+    {
+     "id": "shot",
+     "type": "any"
+    },
+    {
+     "id": "crop",
+     "type": "any"
+    },
+    {
+     "id": "detail",
+     "type": "any"
+    }
+   ],
+   "settings": {
+    "fields": null
+   },
+   "type": "eye"
+  },
+  {
+   "inputs": [
+    {
+     "id": "image",
+     "type": "image"
+    }
+   ],
+   "outputs": [
+    {
+     "id": "safe",
+     "type": "any"
+    },
+    {
+     "id": "score",
+     "type": "any"
+    },
+    {
+     "id": "image",
+     "type": "image"
+    }
+   ],
+   "settings": {
+    "threshold": 0.5
+   },
+   "type": "moderator"
+  },
+  {
+   "inputs": [
+    {
+     "id": "photos",
+     "list": true,
+     "type": "image"
+    }
+   ],
+   "outputs": [
+    {
+     "each": true,
+     "id": "keep",
+     "type": "image"
+    },
+    {
+     "each": true,
+     "id": "others",
+     "type": "image"
+    },
+    {
+     "id": "groups",
+     "type": "any"
+    }
+   ],
+   "settings": {},
+   "type": "duplicates"
+  },
+  {
+   "inputs": [
+    {
+     "id": "image",
+     "type": "image"
+    }
+   ],
+   "outputs": [
+    {
+     "id": "text",
+     "type": "text"
+    },
+    {
+     "each": true,
+     "id": "lines",
+     "type": "text"
+    }
+   ],
+   "settings": {
+    "fast": false
+   },
+   "type": "readtext"
+  },
+  {
+   "inputs": [
+    {
+     "id": "value",
+     "type": "any"
+    },
+    {
+     "id": "test",
+     "optional": true,
+     "type": "any"
+    }
+   ],
+   "outputs": [
+    {
+     "id": "yes",
+     "type": "any"
+    },
+    {
+     "id": "no",
+     "type": "any"
+    }
+   ],
+   "settings": {
+    "op": "equals",
+    "operand": ""
+   },
+   "type": "if"
+  },
+  {
+   "inputs": [
+    {
+     "id": "a",
+     "optional": true,
+     "type": "any"
+    },
+    {
+     "id": "b",
+     "optional": true,
+     "type": "any"
+    }
+   ],
+   "outputs": [
+    {
+     "id": "value",
+     "type": "any"
+    }
+   ],
+   "settings": {},
+   "type": "merge"
+  },
+  {
+   "inputs": [
+    {
+     "id": "items",
+     "list": true,
+     "type": "any"
+    },
+    {
+     "id": "by",
+     "list": true,
+     "optional": true,
+     "type": "any"
+    }
+   ],
+   "outputs": [
+    {
+     "id": "result",
+     "type": "any"
+    }
+   ],
+   "settings": {
+    "n": 0,
+    "op": "firstN"
+   },
+   "type": "list"
+  },
+  {
+   "inputs": [
+    {
+     "id": "items",
+     "list": true,
+     "type": "any"
+    },
+    {
+     "id": "scores",
+     "list": true,
+     "type": "any"
+    }
+   ],
+   "outputs": [
+    {
+     "id": "best",
+     "type": "any"
+    },
+    {
+     "id": "score",
+     "type": "any"
+    }
+   ],
+   "settings": {},
+   "type": "best"
+  },
+  {
+   "inputs": [
+    {
+     "id": "a",
+     "optional": true,
+     "type": "any"
+    },
+    {
+     "id": "b",
+     "optional": true,
+     "type": "any"
+    },
+    {
+     "id": "c",
+     "optional": true,
+     "type": "any"
+    }
+   ],
+   "outputs": [
+    {
+     "id": "text",
+     "type": "text"
+    }
+   ],
+   "settings": {
+    "template": "{{a}}"
+   },
+   "type": "template"
+  },
+  {
+   "inputs": [
+    {
+     "id": "items",
+     "list": true,
+     "type": "any"
+    }
+   ],
+   "outputs": [
+    {
+     "id": "text",
+     "type": "text"
+    }
+   ],
+   "settings": {
+    "separator": "newline"
+   },
+   "type": "join"
+  },
+  {
+   "inputs": [
+    {
+     "id": "value",
+     "type": "any"
+    }
+   ],
+   "outputs": [
+    {
+     "id": "file",
+     "type": "any"
+    }
+   ],
+   "settings": {
+    "to": ""
+   },
+   "type": "convert"
+  },
+  {
+   "inputs": [
+    {
+     "id": "value",
+     "type": "any"
+    }
+   ],
+   "outputs": [],
+   "settings": {},
+   "type": "view"
+  },
+  {
+   "inputs": [
+    {
+     "id": "a",
+     "optional": true,
+     "type": "any"
+    },
+    {
+     "id": "b",
+     "optional": true,
+     "type": "any"
+    },
+    {
+     "id": "c",
+     "optional": true,
+     "type": "any"
+    }
+   ],
+   "outputs": [],
+   "settings": {
+    "columns": ""
+   },
+   "type": "table"
+  },
+  {
+   "inputs": [
+    {
+     "id": "value",
+     "list": true,
+     "type": "any"
+    },
+    {
+     "id": "a",
+     "optional": true,
+     "type": "any"
+    }
+   ],
+   "outputs": [],
+   "settings": {
+    "auto": true,
+    "folder": "",
+    "name": "result"
+   },
+   "type": "folder"
+  },
+  {
+   "inputs": [
+    {
+     "id": "files",
+     "list": true,
+     "type": "any"
+    },
+    {
+     "id": "a",
+     "list": true,
+     "optional": true,
+     "type": "any"
+    }
+   ],
+   "outputs": [
+    {
+     "id": "names",
+     "type": "text"
+    }
+   ],
+   "settings": {
+    "folder": "",
+    "mode": "copy",
+    "pattern": "{{date}}-{{n}}"
+   },
+   "type": "rename"
+  },
+  {
+   "inputs": [
+    {
+     "id": "files",
+     "list": true,
+     "type": "any"
+    },
+    {
+     "id": "a",
+     "list": true,
+     "optional": true,
+     "type": "any"
+    }
+   ],
+   "outputs": [],
+   "settings": {
+    "folder": "",
+    "mode": "copy",
+    "subfolder": ""
+   },
+   "type": "copy"
+  }
+ ],
+ "tool": "desertant",
+ "version": "0.5.0"
+}

@@ -1,4 +1,5 @@
 import Foundation
+import Transcript
 
 /// Runs one call at a time, in order. A model instance is not safe to call
 /// twice at once, and an actor would not stop that: it lets a second call in
@@ -92,6 +93,24 @@ struct Topic: Sendable {
 struct Suggestion: Sendable {
     let emoji: String
     let confidence: Double
+}
+
+struct Filler: Sendable {
+    let type: String
+    let start: Double
+    let end: Double
+    let confidence: Double
+}
+
+/// A stretch of a recording worth sharing, and the spans of it that play.
+struct Moment: Sendable {
+    let text: String
+    let score: Double
+    let ranges: [TimeRange]
+
+    var start: Double { ranges.first?.start ?? 0 }
+    var end: Double { ranges.last?.end ?? 0 }
+    var duration: Double { ranges.reduce(0) { $0 + $1.duration } }
 }
 
 struct Moderation: Sendable {

@@ -32,6 +32,27 @@ private func word(_ text: String, _ start: Double, _ end: Double) -> Transcript.
         #expect(live.committed == "Hi all Hello")
     }
 
+    @Test func linesAreSentencesWithTheVoiceThatSaidThem() {
+        let words = [word("Hi", 0.1, 0.4), word("all.", 0.5, 0.9), word("Welcome", 1.0, 1.5), word("back.", 1.5, 1.9),
+                     word("Thanks.", 2.2, 2.6)]
+        let lines = Speakers.lines(words, turns)
+        #expect(lines.map(\.text) == ["Hi all.", "Welcome back.", "Thanks."])
+        #expect(lines.map(\.speaker) == [0, 0, 1])
+        #expect(Speakers.paragraphs(lines).map { $0.lines.count } == [2, 1])
+    }
+
+    @Test func aWordOrTwoBetweenOneVoiceIsJitter() {
+        let turns = [SpeakerTurn(start: 0, end: 1, speaker: 0), SpeakerTurn(start: 1, end: 1.3, speaker: 1), SpeakerTurn(start: 1.3, end: 3, speaker: 0)]
+        let words = [word("So", 0.2, 0.5), word("the", 0.6, 0.9), word("plan", 1.0, 1.25), word("is", 1.4, 1.6), word("set.", 1.7, 2.0)]
+        #expect(Speakers.lines(words, turns).map(\.speaker) == [0])
+    }
+
+    @Test func listedNamesGoToTheVoicesInOrder() {
+        #expect(Speakers.names(listed: "Anna, Ben,") == [0: "Anna", 1: "Ben"])
+        let joined = Speakers.join([SpeakerTurn(start: 0, end: 1, speaker: 0), SpeakerTurn(start: 1.5, end: 2, speaker: 0), SpeakerTurn(start: 4, end: 5, speaker: 0)])
+        #expect(joined == [SpeakerTurn(start: 0, end: 2, speaker: 0), SpeakerTurn(start: 4, end: 5, speaker: 0)])
+    }
+
     @Test func theOnlyVoiceInTheRoomIsYou() {
         let names = Speakers.names([0, 1, 2], local: [1], guests: [], given: [:])
         #expect(names == [0: "Speaker 1", 1: "You", 2: "Speaker 2"])

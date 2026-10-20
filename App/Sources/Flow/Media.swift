@@ -17,27 +17,29 @@ enum Media {
         let label = name ?? url.deletingPathExtension().lastPathComponent
         // AVAudioFile reads wav, aiff, caf, m4a, mp3, and flac directly. A video,
         // or anything it does not take, goes through AVAssetReader.
-        if let file = try? AVAudioFile(forReading: url) {
-            return try readFile(file, sampleRate: sampleRate, name: label)
+        let samples = if let file = try? AVAudioFile(forReading: url) {
+            try readFile(file, sampleRate: sampleRate)
+        } else {
+            try await readAsset(url, sampleRate: sampleRate)
         }
-        return try await readAsset(url, sampleRate: sampleRate, name: label)
+        return AudioClip(samples: samples, sampleRate: sampleRate, name: label, file: url)
     }
 
     private static func monoFormat(_ rate: Double) -> AVAudioFormat {
         AVAudioFormat(commonFormat: .pcmFormatFloat32, sampleRate: rate, channels: 1, interleaved: false)!
     }
 
-    private static func readFile(_ file: AVAudioFile, sampleRate: Double, name: String) throws -> AudioClip {
+    private static func readFile(_ file: AVAudioFile, sampleRate: Double) throws -> [Float] {
         let input = file.processingFormat
         let frames = AVAudioFrameCount(file.length)
         guard frames > 0, let buffer = AVAudioPCMBuffer(pcmFormat: input, frameCapacity: frames) else {
             throw StepError("That recording is empty")
         }
         try file.read(into: buffer)
-        return AudioClip(samples: try convert(buffer, to: sampleRate), sampleRate: sampleRate, name: name)
+        return try convert(buffer, to: sampleRate)
     }
 
-    private static func readAsset(_ url: URL, sampleRate: Double, name: String) async throws -> AudioClip {
+    private static func readAsset(_ url: URL, sampleRate: Double) async throws -> [Float] {
         let asset = AVURLAsset(url: url)
         guard let track = try await asset.loadTracks(withMediaType: .audio).first else {
             throw StepError("That file has no sound in it")
@@ -64,7 +66,7 @@ enum Media {
         }
         if reader.status == .failed { throw reader.error ?? StepError("That file could not be read") }
         guard !samples.isEmpty else { throw StepError("That recording is empty") }
-        return AudioClip(samples: samples, sampleRate: sampleRate, name: name)
+        return samples
     }
 
     /// Mixes down to mono and changes the rate in one pass.
@@ -131,6 +133,19 @@ enum Media {
     }
 
     // MARK: Photos
+
+    /// When a photo was taken, from its EXIF, in seconds since 1970.
+    static func captureDate(_ url: URL) -> Double? {
+        guard let source = CGImageSourceCreateWithURL(url as CFURL, nil),
+              let exif = (CGImageSourceCopyPropertiesAtIndex(source, 0, nil) as? [CFString: Any])?[kCGImagePropertyExifDictionary] as? [CFString: Any],
+              let stamp = exif[kCGImagePropertyExifDateTimeOriginal] as? String
+        else { return nil }
+        let offset = exif[kCGImagePropertyExifOffsetTimeOriginal] as? String
+        let format = DateFormatter()
+        format.locale = Locale(identifier: "en_US_POSIX")
+        format.dateFormat = offset == nil ? "yyyy:MM:dd HH:mm:ss" : "yyyy:MM:dd HH:mm:ssXXXXX"
+        return format.date(from: stamp + (offset ?? ""))?.timeIntervalSince1970
+    }
 
     /// A photo file, at the working size and as a thumbnail.
     static func photo(_ url: URL) throws -> Photo {

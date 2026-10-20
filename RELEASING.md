@@ -82,13 +82,15 @@ NOTARY_PROFILE = "<profile name>"
 
 ## Release notes
 
-Write release notes in plain sentences, with no em dashes, no hype words, and no exclamation marks. The notes for 0.0.3:
+Write release notes in plain sentences, with no em dashes, no hype words, and no exclamation marks. The notes for 0.0.4:
 
 ```markdown
-Desert Ant Flow 0.0.3 names the flows you haven't named, and lets you choose sample photos without the flow running on every click.
+Desert Ant Flow 0.0.4 cuts highlight clips, finds filler words, and opens the flow files of the desertant CLI.
 
-- A flow without a title is named after its models, like "Clear and Gist", in the title bar, the Save dialog, and the file it saves to. Once you save it, it keeps that name.
-- Choose Samples… shows every sample photo in one sheet. Tick as many as you like, and the flow runs once you press Use.
+- Clips picks the moments worth sharing from a talk or a podcast and cuts them out of the recording or video, with the captions burned into the picture or saved beside each clip.
+- Uhm lists every uh, um, and hmm with its time. Captions writes SRT and WebVTT, and Duplicates sets the near-duplicates in a set of photos apart from the ones to keep.
+- A flow file from `da flow new` opens in Flow and runs the same way it runs in the terminal.
+- Who can name the speakers and gives each paragraph its speaker. Clear keeps the picture of a video, and Save to folder saves beside the file the flow runs on when no folder is set.
 ```
 
 ## Fixing a bad release

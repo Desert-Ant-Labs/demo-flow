@@ -1,10 +1,10 @@
 import Foundation
 import Yams
 
-/// A flow as YAML, the same format the web app reads and writes: each step
-/// names what it uses ("step.output") and its settings. A flow laid out by
-/// hand also keeps each step's place on the canvas (`at`), which the web app
-/// ignores and lays out again.
+/// A flow as YAML, the same format the web app and the desertant CLI read and
+/// write: each step names what it uses ("step.output") and its settings. A
+/// flow laid out by hand also keeps each step's place on the canvas (`at`),
+/// which the others ignore.
 enum FlowFile {
     static let header = "# Desert Ant Flow. Open it in Desert Ant Flow for Mac or at https://flow.desertant.com.\n"
 
@@ -41,9 +41,11 @@ enum FlowFile {
         var graph = Graph()
         graph.meta.title = doc["title"] as? String ?? ""
         graph.meta.description = doc["description"] as? String ?? ""
+        graph.meta.summary = doc["summary"] as? String ?? ""
         let known = steps.compactMap { s -> (id: String, def: StepDef, fields: [String: Any])? in
-            guard let id = s["id"], let type = s["type"] as? String, let def = Steps.byType[type] else { return nil }
-            return ("\(id)", def, s)
+            guard let type = s["type"] as? String, let def = Steps.byType[type] else { return nil }
+            let id = s["id"].map { "\($0)" } ?? ""
+            return (id.isEmpty ? type : id, def, s)
         }
         var ids = Set<String>()
         for step in known where !ids.insert(step.id).inserted { throw SameID(id: step.id) }
@@ -58,10 +60,21 @@ enum FlowFile {
                 placed = true
             }
             graph.nodes.append(Node(id: id, type: def.type, position: position, params: params))
+            var wired = Set<String>()
             for (handle, from) in (s["uses"] as? [String: Any]) ?? [:] {
                 let parts = "\(from)".split(separator: ".", maxSplits: 1).map(String.init)
                 guard parts.count == 2, ids.contains(parts[0]) else { continue }
                 graph.edges.append(Edge(source: parts[0], sourceHandle: parts[1], target: id, targetHandle: handle))
+                wired.insert(handle)
+            }
+            // A step written without an id is written the CLI's short way, and
+            // its inputs are filled in as the CLI fills them. Every other
+            // step's wires are all in the file.
+            let earlier = graph.nodes.dropLast().reversed()
+            for port in def.inputs where s["id"] == nil && !wired.contains(port.id) {
+                if let (source, output) = implied(port, before: earlier) {
+                    graph.edges.append(Edge(source: source, sourceHandle: output, target: id, targetHandle: port.id))
+                }
             }
         }
         // A wire that closes a loop is dropped, so the flow can still run.
@@ -74,6 +87,25 @@ enum FlowFile {
         graph.edges = kept
         graph.meta.arranged = placed
         return graph
+    }
+
+    /// Where an input the file leaves out of `uses` comes from, as the CLI
+    /// reads it: the nearest earlier step with an output of the same name, or
+    /// for a required input the nearest with an output of a type that fits.
+    /// Of several that fit, a step's first output, when it is one of them.
+    private static func implied(_ port: Port, before earlier: ReversedCollection<ArraySlice<Node>>) -> (String, String)? {
+        for n in earlier {
+            if let out = n.def?.outputs.first(where: { $0.id == port.id }), out.type.fits(port.type) { return (n.id, out.id) }
+        }
+        guard !port.optional else { return nil }
+        for n in earlier {
+            guard let outputs = n.def?.outputs else { continue }
+            let fit = outputs.filter { port.type == .any || $0.type == port.type }
+            if fit.count == 1 { return (n.id, fit[0].id) }
+            if let first = outputs.first, fit.contains(where: { $0.id == first.id }) { return (n.id, first.id) }
+            if !fit.isEmpty { return nil }
+        }
+        return nil
     }
 
     /// How many values a YAML tree holds, each use of a repeated part
@@ -100,6 +132,7 @@ enum FlowFile {
         var root: [(YNode, YNode)] = [(key("flow"), YNode("1", Tag(.int)))]
         if !graph.meta.title.isEmpty { root.append((key("title"), string(graph.meta.title))) }
         if !graph.meta.description.isEmpty { root.append((key("description"), string(graph.meta.description))) }
+        if !graph.meta.summary.isEmpty { root.append((key("summary"), string(graph.meta.summary))) }
         root.append((key("steps"), .sequence(.init(steps.map { step(graph, $0, link: link) }))))
         let yaml = (try? Yams.serialize(node: .mapping(.init(root)), width: 100, allowUnicode: true)) ?? ""
         return link ? yaml : header + yaml

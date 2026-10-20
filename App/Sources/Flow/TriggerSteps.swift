@@ -31,10 +31,10 @@ enum TriggerSteps {
     static let watch = StepDef(
         type: "watch", title: "When files arrive", description: "Runs on each batch of new files in a folder",
         category: .input,
-        outputs: [Port(id: "photos", type: .image, label: "Photos", each: "photo"),
+        outputs: [Port(id: "files", type: .any, label: "Files", each: "file"),
+                  Port(id: "photos", type: .image, label: "Photos", each: "photo"),
                   Port(id: "audio", type: .audio, label: "Recordings", each: "recording"),
-                  Port(id: "text", type: .text, label: "Texts", each: "text"),
-                  Port(id: "files", type: .any, label: "Files", each: "file")],
+                  Port(id: "text", type: .text, label: "Texts", each: "text")],
         defaults: ["folder": ""], pick: Pick(defaults: ["photos"]), width: 400
     ) { run in
         let paths = (run.params["files"]?.strings).flatMap { $0.isEmpty ? nil : $0 } ?? run.params["samples"]?.strings ?? []

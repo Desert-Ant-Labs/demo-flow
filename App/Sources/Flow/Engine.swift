@@ -185,7 +185,7 @@ final class Engine {
         if force { memo = memo.filter { id, _ in graph.node(id).flatMap { steps[$0.type] }?.asks == true } }
         counted = Set(graph.nodes.filter { $0.type != "note" && steps[$0.type] != nil }.map(\.id))
         ModelHub.shared.prefetch(graph.models)
-        let samples = graph.runsOnSamples
+        let samples = graph.runsOnSamples, source = graph.source
         let mayWrite = mayWrite
         let attended = attended
         let byID = Dictionary(graph.nodes.map { ($0.id, $0) }, uniquingKeysWith: { a, _ in a })
@@ -255,7 +255,7 @@ final class Engine {
                 // since changed. That work is stale: it must neither land after
                 // the new result nor, by failing, wipe it.
                 inflight[id]?.task.cancel()
-                let context = RunContext(id: id, samples: samples, mayWrite: mayWrite, attended: attended,
+                let context = RunContext(id: id, samples: samples, mayWrite: mayWrite, source: source, attended: attended,
                                          asker: { [weak self] q in
                                              guard let self else { throw CancellationError() }
                                              return try await self.wait(q)

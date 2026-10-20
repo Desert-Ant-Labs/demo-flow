@@ -18,7 +18,7 @@ packages:
     from: 2.10.0
   DesertAntCore:
     url: https://github.com/Desert-Ant-Labs/desert-ant-core.git
-    from: 4.0.0
+    from: 4.1.0
   DesertAntSwift:
     url: https://github.com/Desert-Ant-Labs/desert-ant-swift.git
     from: 2.1.3
@@ -43,6 +43,9 @@ targets:
         type: folder
         buildPhase: resources
       - path: App/Resources/link-dictionary.txt
+        buildPhase: resources
+      - path: App/Resources/Fonts
+        type: folder
         buildPhase: resources
       # The notices and full license texts, for the Acknowledgements window.
       - path: THIRD_PARTY_NOTICES.md
@@ -73,6 +76,12 @@ targets:
         product: Eye
       - package: DesertAntCore
         product: Who
+      - package: DesertAntCore
+        product: Uhm
+      - package: DesertAntCore
+        product: Clips
+      - package: DesertAntCore
+        product: Transcript
       - package: DesertAntSwift
         product: DesertAntUI
       - package: Yams
@@ -89,8 +98,8 @@ targets:
       properties:
         CFBundleDisplayName: Desert Ant Flow
         NSHumanReadableCopyright: © 2026 Desert Ant Labs B.V. Flow is MIT licensed. The models are under the Desert Ant Labs Source-Available License.
-        CFBundleShortVersionString: "0.0.3"
-        CFBundleVersion: "3"
+        CFBundleShortVersionString: "0.0.4"
+        CFBundleVersion: "4"
         LSMinimumSystemVersion: "26.0"
         LSApplicationCategoryType: public.app-category.productivity
         SUFeedURL: https://github.com/Desert-Ant-Labs/demo-flow/releases/latest/download/appcast.xml

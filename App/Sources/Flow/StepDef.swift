@@ -74,6 +74,8 @@ final class RunContext: @unchecked Sendable {
     /// the flow on to run by itself. Until then a flow just opened, maybe from
     /// a link, changes no file outside the app's own folders.
     let mayWrite: Bool
+    /// The file the flow runs on, for a name made from it and a folder beside it.
+    let source: URL?
     /// Reports which item a loop is on, of how many.
     let progress: @Sendable (Int, Int) -> Void
     /// Someone has the flow open in a window and can answer a question at
@@ -86,11 +88,12 @@ final class RunContext: @unchecked Sendable {
     private var itemCount: Int?
     private var remark: String?
 
-    init(id: String, samples: Bool = false, mayWrite: Bool = false, attended: Bool = true,
+    init(id: String, samples: Bool = false, mayWrite: Bool = false, source: URL? = nil, attended: Bool = true,
          asker: (@Sendable (Question) async throws -> Answer)? = nil, progress: @escaping @Sendable (Int, Int) -> Void) {
         self.id = id
         self.samples = samples
         self.mayWrite = mayWrite
+        self.source = source
         self.attended = attended
         self.asker = asker
         self.progress = progress
@@ -205,7 +208,7 @@ struct StepError: LocalizedError {
 }
 
 enum Steps {
-    static let all: [StepDef] = TriggerSteps.all + InputSteps.all + ModelSteps.all + LogicSteps.all + [AskStep.def, ReadTextStep.def, ConvertStep.def] + OutputSteps.all + FileSteps.all + [LogicSteps.note]
+    static let all: [StepDef] = TriggerSteps.all + InputSteps.all + ModelSteps.all + LogicSteps.all + [AskStep.def, ReadTextStep.def, CaptionsStep.def, ConvertStep.def] + OutputSteps.all + FileSteps.all + [LogicSteps.note]
     static let byType: [String: StepDef] = Dictionary(uniqueKeysWithValues: all.map { ($0.type, $0) })
     static let palette = all
 }

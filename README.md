@@ -1,4 +1,4 @@
-<img src="docs/banner.png" width="1280" alt="Desert Ant Flow for Mac: Your own on-device automation studio. Eleven models, no inference costs.">
+<img src="docs/banner.png" width="1280" alt="Desert Ant Flow for Mac: Your own on-device automation studio. Unlimited runs, no inference costs.">
 
 # Desert Ant Flow
 
@@ -28,11 +28,13 @@ Homebrew 6 asks you to approve a tap when you add it first. Approving it covers 
 
 - Build a flow as a list in Steps, where you pick each step's input from a menu. On the Canvas, drag a step's output to another step's input instead. Add Next Step lists the steps that fit after the selected one and connects the step you pick.
 - Drop photos, recordings, videos, or text on a flow, paste them, or pick them in Finder or your Photos library. The Record step records from the microphone, or from the microphone and system audio during a call.
-- The Result step copies, saves, and shares a result. Save to folder writes the result into a folder you pick when the flow runs on your own files: text as .txt or .md, a table as .csv, and photos and recordings as files.
+- The Result step copies, saves, and shares a result. Save to folder writes the result into a folder you pick, or beside the file the flow runs on: text as .txt or .md, a table as .csv, and photos, recordings, and videos as files.
 - A flow can run on its own when a call starts, when files arrive in a folder, on a schedule, or when you press a shortcut. Turn this on in the flow's first step. Flow then runs the flow from the menu bar, and a small floater shows its progress.
 - The Ask step pauses a flow until you answer: Yes or No before files move, unticking the photos a model got wrong, choosing from a few answers, or typing one. A flow that runs on its own asks in the floater and in a notification, and can go on with an answer you set once it has waited long enough.
 - Show Results opens a pane beside the flow with every result at full size: photos as a wall you can filter by label, tables you can sort and copy, scores as a chart, and text set for reading. Export them all as a PDF, as Markdown, or as a folder with each result in its own file.
 - The meeting notes template transcribes a call as it happens and labels who said what. Flow records you from the microphone and everyone else from system audio. Flow saves the notes under the meeting's title from your calendar. Click the floater to read the transcript in a see-through window that you can move anywhere, and to name the voices.
+- Clips cuts the moments worth sharing out of a talk or a podcast, with the captions burned into the picture or saved beside each clip. Uhm lists every uh, um, and hmm with its time.
+- Flow opens the flow files of the [desertant CLI](https://github.com/Desert-Ant-Labs/desert-ant-cli), and a flow runs the same in both. Run `da flow new podcast-clips` and open the file it writes in Flow.
 - Copy Link to Flow puts a flow.desertant.com link on the clipboard, with the whole flow in the link. Open Link from Clipboard opens that link in Flow.
 
 <picture>

@@ -6,11 +6,15 @@ final class AudioClip: @unchecked Sendable {
     let samples: [Float]
     let sampleRate: Double
     let name: String
+    /// The recording or video this sound plays in, which Clips cuts and a
+    /// saved video keeps.
+    let file: URL?
 
-    init(samples: [Float], sampleRate: Double, name: String) {
+    init(samples: [Float], sampleRate: Double, name: String, file: URL? = nil) {
         self.samples = samples
         self.sampleRate = sampleRate
         self.name = name
+        self.file = file
     }
 
     var duration: Double { Double(samples.count) / sampleRate }
@@ -92,11 +96,12 @@ indirect enum Value: @unchecked Sendable {
         if case .image(let p) = self { p } else { nil }
     }
 
-    /// The file a value came from: a file, or a photo opened from one.
+    /// The file a value came from: a file, or a photo or recording opened from one.
     var fileURL: URL? {
         switch self {
         case .file(let url): url
         case .image(let p): p.file
+        case .audio(let a): a.file
         default: nil
         }
     }
