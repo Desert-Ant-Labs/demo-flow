@@ -160,6 +160,20 @@ struct CheckPhoto: AppIntent {
     }
 }
 
+struct CheckText: AppIntent {
+    static let title: LocalizedStringResource = "Check Text with Toxic"
+    static let description = IntentDescription("Says whether a text is hateful, abusive, or threatening, on this Mac.")
+
+    @Parameter(title: "Text")
+    var text: String
+
+    func perform() async throws -> some IntentResult & ReturnsValue<Bool> {
+        let out = try await ModelAction.run("toxic", ["text": .text(text)])
+        guard case .bool(let toxic)? = out["toxic"] else { throw StepError("Toxic gave no answer") }
+        return .result(value: toxic)
+    }
+}
+
 /// What Eye can say about a photo, as Shortcuts offers it.
 enum EyeQuestion: String, AppEnum {
     case subject, type, keeper, reason, people, pets, faces, smile, eyesOpen, looking, shot, sharp

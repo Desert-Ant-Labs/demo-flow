@@ -179,7 +179,7 @@ actor EyeReadings {
 }
 
 enum ModelSteps {
-    static let all: [StepDef] = [voz, who, clear, uhm, ClipsStep.def, ear, redact, tongue, gist, emo, shapes, moderator, eye, duplicates]
+    static let all: [StepDef] = [voz, who, clear, uhm, ClipsStep.def, ear, redact, tongue, toxic, gist, emo, shapes, moderator, eye, face, duplicates]
 
     static let voz = StepDef(
         type: "voz", title: "Voz", description: "Speech to text, with word timings",
@@ -326,6 +326,24 @@ enum ModelSteps {
         return language(try await run.context.timed { try await ModelHub.tongue.detect(text) })
     }
 
+    static let toxic = StepDef(
+        type: "toxic", title: "Toxic", description: "Hateful, abusive, or threatening text",
+        category: .model, model: .toxic,
+        inputs: [Port(id: "text", type: .text, label: "Text")],
+        outputs: [Port(id: "toxic", type: .any, label: "Is toxic"), Port(id: "score", type: .any, label: "Score"),
+                  Port(id: "content", type: .any, label: "What it does"), Port(id: "targets", type: .any, label: "Who it targets"),
+                  Port(id: "text", type: .text, label: "Text")],
+        pick: Pick(defaults: ["toxic", "content"])
+    ) { run in
+        let text = run.inputs["text"].asText
+        let t = try await run.context.timed { try await ModelHub.toxic.analyze(text) }
+        return [
+            "toxic": .bool(t.isToxic), "score": .number(t.score),
+            "content": .list(t.content.map { .text($0) }), "targets": .list(t.targets.map { .text($0) }),
+            "text": .text(text),
+        ]
+    }
+
     static let gist = StepDef(
         type: "gist", title: "Gist", description: "What it is about, in 36 topics",
         category: .model, model: .gist,
@@ -405,6 +423,23 @@ enum ModelSteps {
         for field in EyeFields.all { out[field.id] = field.read(r) }
         return out
     }
+
+    static let face = StepDef(
+        type: "face", title: "Face", description: "The photos of each person",
+        category: .model, model: .face,
+        inputs: [Port(id: "photos", type: .image, label: "Photos", list: true)],
+        outputs: [Port(id: "people", type: .any, label: "People", each: "person"), Port(id: "count", type: .any, label: "Count")],
+        noMap: true, pick: Pick(defaults: ["people", "count"])
+    ) { run in
+        let photos = (run.inputs["photos"]?.present ?? []).compactMap(\.photo)
+        let people = try await run.context.timed {
+            try await ModelHub.face.people(in: photos.map(\.image)) { run.context.progress($0, photos.count) }
+        }
+        return [
+            "people": .list(people.map { .list($0.map { .image(photos[$0]) }) }),
+            "count": .number(Double(people.count)),
+        ]
+    }
 }
 
 extension ModelSteps {
@@ -437,7 +472,7 @@ extension ModelSteps {
 func isScore(_ type: String?, _ output: String) -> Bool {
     switch type {
     case "eye": EyeFields.scores.contains(output)
-    case "moderator": output == "score"
+    case "moderator", "toxic": output == "score"
     default: false
     }
 }

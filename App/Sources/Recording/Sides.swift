@@ -29,9 +29,9 @@ struct Heard: Sendable {
         let settled: Bool
     }
 
-    /// Every side's words in the order they were said. With `voices`, each
-    /// word gets its voice: Who's turns on its own side, numbered for that
-    /// side, or the side's first voice before Who has listened.
+    /// Every side's words in order, each voice's kept together until it pauses.
+    /// With `voices`, each word gets its voice: Who's turns on its own side, or
+    /// the side's first voice before Who has listened.
     ///
     /// Words the room heard at the moment the call said them are dropped:
     /// the call's echo off the speakers, what is left of it once AEC3 has
@@ -41,7 +41,7 @@ struct Heard: Sendable {
         var said: [Said] = []
         for side in Side.allCases {
             guard let heard = sides[side] else { continue }
-            let speakers = voices ? Speakers.assign(heard.words, heard.turns) : []
+            let speakers = voices ? Speakers.assign(heard.words, Speakers.keeping(heard.turns)) : []
             for (i, word) in heard.words.enumerated() {
                 if side == .room, echo.of(word) { continue }
                 var word = word
@@ -49,13 +49,31 @@ struct Heard: Sendable {
                 said.append(Said(word: word, settled: i < heard.settled))
             }
         }
-        return said.sorted { $0.word.start < $1.word.start }
+        return inRuns(said)
+    }
+
+    /// The longest pause inside one voice's run.
+    static let pause = 1.0
+
+    private static func inRuns(_ said: [Said]) -> [Said] {
+        var runs: [Int?: (id: Int, start: Double, end: Double)] = [:], count = 0
+        let keyed = said.sorted { $0.word.start < $1.word.start }.map { said in
+            let voice = said.word.speaker
+            if let run = runs[voice], said.word.start - run.end <= pause {
+                runs[voice]!.end = max(run.end, said.word.end)
+            } else {
+                runs[voice] = (count, said.word.start, said.word.end)
+                count += 1
+            }
+            return (start: runs[voice]!.start, run: runs[voice]!.id, said: said)
+        }
+        return keyed.sorted { ($0.start, $0.run, $0.said.word.start) < ($1.start, $1.run, $1.said.word.start) }.map(\.said)
     }
 
     /// Who's turns from every side, numbered for their side.
     static func turns(_ sides: [Side: Heard]) -> [SpeakerTurn] {
         sides.flatMap { side, heard in
-            heard.turns.map { SpeakerTurn(start: $0.start, end: $0.end, speaker: $0.speaker + side.first) }
+            Speakers.keeping(heard.turns).map { SpeakerTurn(start: $0.start, end: $0.end, speaker: $0.speaker + side.first) }
         }.sorted { $0.start < $1.start }
     }
 

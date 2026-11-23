@@ -49,6 +49,23 @@ struct StepPreview: View {
                     Pill(text: "\(Int(((o["score"]?.asNumber ?? 0) * 100).rounded()))", good: safe)
                 }
             }
+        case "toxic":
+            if case .stream = o["toxic"] { ValueView(value: o["toxic"]) } else {
+                let toxic = o["toxic"]?.asText == "true"
+                VStack(alignment: .leading, spacing: 6) {
+                    HStack {
+                        Text(toxic ? "Flagged" : "Looks fine").font(.title3.weight(.semibold))
+                        Pill(text: "\(Int(((o["score"]?.asNumber ?? 0) * 100).rounded()))", good: !toxic)
+                    }
+                    if toxic {
+                        Text(((o["content"]?.present ?? []) + (o["targets"]?.present ?? [])).map(\.asText).joined(separator: ", "))
+                            .foregroundStyle(.secondary)
+                    }
+                }
+            }
+        case "face":
+            let people = o["people"]?.present ?? []
+            Text(people.count == 1 ? "1 person" : "\(people.count) people").font(.title3.weight(.semibold))
         case "eye":
             EyePreview(node: node, state: state)
         case "uhm":

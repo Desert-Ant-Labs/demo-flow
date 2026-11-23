@@ -143,6 +143,54 @@ enum Speakers {
         paragraphs(lines).map { "\(name($0.speaker, names)): \($0.lines.map(\.text).joined(separator: " "))" }.joined(separator: "\n\n")
     }
 
+    /// Drops voices heard for under `share` of the speech, such as a cough or an echo.
+    static func keeping(_ turns: [SpeakerTurn], share: Double = 0.02) -> [SpeakerTurn] {
+        var time: [Int: Double] = [:]
+        for turn in turns { time[turn.speaker, default: 0] += turn.end - turn.start }
+        let total = time.values.reduce(0, +)
+        return turns.filter { time[$0.speaker]! >= share * total }
+    }
+
+    /// Maps each voice to the oldest voice Who heard as the same person.
+    static func same(_ turns: [SpeakerTurn], samples: [SpeakerTurn]) -> [Int: Int] {
+        var heardAs: [Int: [Int]] = [:]
+        for sample in samples {
+            var time: [Int: Double] = [:]
+            for turn in turns { time[turn.speaker, default: 0] += max(0, min(turn.end, sample.end) - max(turn.start, sample.start)) }
+            guard let (voice, shared) = time.max(by: { $0.value < $1.value }), shared >= (sample.end - sample.start) / 2 else { continue }
+            heardAs[voice, default: []].append(sample.speaker)
+        }
+        var map: [Int: Int] = [:]
+        for voices in heardAs.values where voices.count > 1 {
+            let oldest = voices.min()!
+            for voice in voices where voice != oldest { map[voice] = oldest }
+        }
+        return map
+    }
+
+    /// Merges new voices heard for under `least` seconds into the voice beside them.
+    static func fold(_ turns: [SpeakerTurn], known: Set<Int>, least: Double) -> [SpeakerTurn] {
+        var time: [Int: Double] = [:]
+        for turn in turns { time[turn.speaker, default: 0] += turn.end - turn.start }
+        let settled = Set(time.filter { known.contains($0.key) || $0.value >= least }.keys)
+        let anchors = turns.filter { settled.contains($0.speaker) }
+        guard !anchors.isEmpty else { return turns }
+        var map: [Int: Int] = [:]
+        for voice in Set(time.keys).subtracting(settled) {
+            var beside: [Int: Double] = [:]
+            for turn in turns where turn.speaker == voice {
+                let nearest = anchors.min { gap(turn, $0) < gap(turn, $1) }!
+                beside[nearest.speaker, default: 0] += turn.end - turn.start
+            }
+            map[voice] = beside.max { $0.value < $1.value }!.key
+        }
+        return turns.map { SpeakerTurn(start: $0.start, end: $0.end, speaker: map[$0.speaker] ?? $0.speaker) }
+    }
+
+    private static func gap(_ a: SpeakerTurn, _ b: SpeakerTurn) -> Double {
+        max(0, max(a.start, b.start) - min(a.end, b.end))
+    }
+
     /// Renumbers a new pass so each voice keeps the number it had in the last
     /// one: the pairing with the most shared time first, then new voices after.
     static func steady(_ turns: [SpeakerTurn], after previous: [SpeakerTurn]) -> [SpeakerTurn] {

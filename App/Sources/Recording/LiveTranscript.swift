@@ -188,7 +188,7 @@ final class LiveTranscript {
                 var last: LiveWords?
                 for await update in session.updates {
                     last = update
-                    let turns = await speakers?.turns
+                    let turns = await speakers?.shown
                     self?.show(side, update.committed + update.tentative, settled: update.committed.count, turns: turns)
                 }
                 return last

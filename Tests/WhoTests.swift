@@ -88,6 +88,19 @@ private func word(_ text: String, _ start: Double, _ end: Double) -> Transcript.
         #expect(steady.map(\.speaker) == [0, 1, 2])
     }
 
+    @Test func twoVoicesWhoseSamplesSoundAlikeAreOne() {
+        let samples = [SpeakerTurn(start: 0, end: 6, speaker: 0), SpeakerTurn(start: 7, end: 13, speaker: 3), SpeakerTurn(start: 14, end: 20, speaker: 1)]
+        let heard = [SpeakerTurn(start: 0, end: 13, speaker: 0), SpeakerTurn(start: 14, end: 20, speaker: 1)]
+        #expect(Speakers.same(heard, samples: samples) == [3: 0])
+    }
+
+    @Test func aNewVoiceHeardForAMomentIsTheVoiceBesideIt() {
+        let heard = [SpeakerTurn(start: 0, end: 10, speaker: 0), SpeakerTurn(start: 10, end: 11, speaker: 2), SpeakerTurn(start: 12, end: 20, speaker: 1)]
+        #expect(Speakers.fold(heard, known: [0, 1], least: 3).map(\.speaker) == [0, 0, 1])
+        let newcomer = [SpeakerTurn(start: 0, end: 10, speaker: 0), SpeakerTurn(start: 10, end: 15, speaker: 2)]
+        #expect(Speakers.fold(newcomer, known: [0], least: 3).map(\.speaker) == [0, 2])
+    }
+
     @Test func turnsSurviveTheRecordStepsSettings() async throws {
         var transcript = Transcript(text: "Hi Hello", words: [word("Hi", 0.1, 0.4), word("Hello", 2.2, 2.6)])
         transcript.turns = turns
@@ -111,6 +124,25 @@ private func word(_ text: String, _ start: Double, _ end: Double) -> Transcript.
         let turns = try await ModelHub.who.diarize(clip.samples, sampleRate: clip.sampleRate)
         #expect(Set(turns.map(\.speaker)).count == 2)
     }
+
+    @Test func aVoiceKeepsItsNumberAfterAMinuteOfQuiet() async throws {
+        try await ModelHub.shared.prepare(.who)
+        let rate = Int(AudioFeed.rate)
+        let first = Array(try await Media.audio(Samples.url("/samples/jfk.wav"), sampleRate: AudioFeed.rate).samples.prefix(8 * rate))
+        let other = try await Media.audio(Samples.url("/samples/voice-memo-2.wav"), sampleRate: AudioFeed.rate).samples
+        let live = try LiveSpeakers()
+        defer { live.discard() }
+        let parts = [first + other.prefix(12 * rate), other + other, first + other.prefix(12 * rate)]
+        for second in stride(from: 0, to: parts.joined().count, by: rate) {
+            await live.append(Array(parts.joined().dropFirst(second).prefix(rate)))
+            await live.pass?.value
+        }
+        let turns = await live.shown
+        let back = Double(parts[0].count + parts[1].count) / AudioFeed.rate
+        let voice = { (from: Double, to: Double) in turns.filter { $0.start < to && from < $0.end }.max { $0.end - $0.start < $1.end - $1.start }?.speaker }
+        #expect(voice(back, back + 8) == voice(0, 8))
+        #expect(Set(turns.filter { $0.start >= 20 }.map(\.speaker)) == [0, 1])
+    }
 }
 
 @Suite struct SideTests {
@@ -130,6 +162,19 @@ private func word(_ text: String, _ start: Double, _ end: Double) -> Transcript.
         #expect(said.compactMap(\.word.speaker).suffix(4) == [100, 100, 101, 101])
         let names = Speakers.names(Set(said.compactMap(\.word.speaker)).sorted(), local: [0], guests: [], given: [:])
         #expect(names == [0: "You", 100: "Speaker 1", 101: "Speaker 2"])
+    }
+
+    @Test func twoPeopleTalkingAtOnceKeepTheirOwnSentences() {
+        let over = [word("Yeah,", 0.25, 0.45), word("let's", 0.55, 0.75), word("see.", 0.85, 1.05)]
+        let said = Heard.merge([.room: Heard(words: you), .call: Heard(words: over)], voices: true)
+        #expect(said.map(\.word.text) == ["Can", "you", "hear", "me?", "Yeah,", "let's", "see."])
+    }
+
+    @Test func aVoiceHeardForAMomentGoesToTheVoicesAroundIt() {
+        let turns = [SpeakerTurn(start: 0, end: 60, speaker: 0), SpeakerTurn(start: 60, end: 60.5, speaker: 1), SpeakerTurn(start: 60.5, end: 90, speaker: 2)]
+        #expect(Speakers.keeping(turns).map(\.speaker) == [0, 2])
+        let said = Heard.merge([.call: Heard(words: [word("Yep.", 60.1, 60.4)], turns: turns)], voices: true)
+        #expect(said.map(\.word.speaker) == [100])
     }
 
     @Test func theCallsEchoInTheRoomIsDropped() {

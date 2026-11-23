@@ -118,6 +118,14 @@ struct Moderation: Sendable {
     let isNSFW: Bool
 }
 
+struct Toxicity: Sendable {
+    let isToxic: Bool
+    /// The highest content score.
+    let score: Double
+    let content: [String]
+    let targets: [String]
+}
+
 /// Eye's reading of a photo, in plain data. Boxes are fractions of the
 /// picture, top-left origin.
 struct PhotoReading: Sendable {

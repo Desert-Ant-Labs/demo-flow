@@ -31,6 +31,7 @@ enum Theme {
         case "terracotta": (rgb(0xDB704C), ink, rgb(0x0E1113, 0.08))
         case "ink": (ink, cream, rgb(0xFBFAF4, 0.08))
         case "sand": (rgb(0xD6D0C3), ink, inkTag)
+        case "clay-red": (rgb(0xD53712), cream, rgb(0xFBFAF4, 0.08))
         case "warm-grey": (rgb(0xB7B6B4), ink, inkTag)
         case "slate": (rgb(0x344B5A), cream, rgb(0xFBFAF4, 0.05))
         case "sage": (rgb(0xADB49C), ink, inkTag)

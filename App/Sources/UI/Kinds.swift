@@ -62,6 +62,8 @@ private let known: [String: [String: Kind]] = [
            ("type", .label), ("reason", .label), ("blur", .label), ("sensitive", .label), ("expression", .label), ("shot", .label),
            ("subject", .list), ("scenes", .list), ("crop", .data), ("detail", .data)]),
     "moderator": ["safe": .yesNo, "score": .number],
+    "toxic": ["toxic": .yesNo, "score": .number, "content": .list, "targets": .list],
+    "face": ["people": .list, "count": .number],
     "tongue": ["reliable": .yesNo, "language": .label, "candidates": .list],
     "ear": ["reliable": .yesNo, "language": .label, "candidates": .list],
     "gist": ["topics": .list, "top": .label],

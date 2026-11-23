@@ -30,6 +30,8 @@ struct FloaterView: View {
             floater.drop(files)
             return true
         } isTargeted: { floater.target($0) }
+        // Deferred: the window's own layout pass can't resize it.
+        .onGeometryChange(for: CGSize.self, of: \.size) { _ in Task { floater.layout() } }
         .scaleEffect(floater.shown || reduceMotion ? 1 : 0.6)
         .opacity(floater.shown ? 1 : 0)
         .environment(\.colorScheme, .dark)

@@ -38,6 +38,8 @@ final class TranscriptHUD {
         blur.blendingMode = .behindWindow
         blur.state = .active
         let words = FirstClickHostingView(rootView: TranscriptHUDView(run: run, transcript: transcript))
+        // The window keeps the size it was given as the words come in.
+        words.sizingOptions = []
         words.frame = blur.bounds
         words.autoresizingMask = [.width, .height]
         blur.addSubview(words)

@@ -17,6 +17,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         guard !FlowApp.testing else { return }
         Task.detached(priority: .utility) { RecordingFolder.sweep() }
         TriggerCenter.shared.start()
+        ModelHub.shared.prepareAll()
         NSApp.servicesProvider = Services.shared
         NSUpdateDynamicServices()
         if Snapshots.show == "card-colors" { CardColors.show() }

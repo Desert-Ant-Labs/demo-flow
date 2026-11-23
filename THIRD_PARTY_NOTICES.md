@@ -10,7 +10,7 @@ The license is free below 100,000 monthly active devices per platform, for each 
 
 | Package | What Flow uses it for |
 |---|---|
-| [`desert-ant-core`](https://github.com/Desert-Ant-Labs/desert-ant-core) | The thirteen models: Voz, Clear, Ear, Redact, Gist, Emo, Tongue, Shapes, Moderator, Eye, Who, Uhm, and Clips |
+| [`desert-ant-core`](https://github.com/Desert-Ant-Labs/desert-ant-core) | The fifteen models: Voz, Clear, Ear, Redact, Gist, Emo, Tongue, Toxic, Shapes, Moderator, Eye, Face, Who, Uhm, and Clips |
 
 The package includes Tongue's weights. Flow downloads the other models from Hugging Face the first time a flow uses them. The notices for the weights each model was trained from are in [`LICENSES/desert-ant-core-notices.md`](LICENSES/desert-ant-core-notices.md) and on each model's Hugging Face page.
 

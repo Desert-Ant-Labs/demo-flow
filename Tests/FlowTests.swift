@@ -299,6 +299,10 @@ private let modelTests = Testing.ConditionTrait.enabled(
         emo.limit = 2
         let emoji = try #require(try await emo.perform().value)
         #expect(!emoji.isEmpty, "Emo gave no emoji")
+
+        var toxic = CheckText()
+        toxic.text = "Thanks for the quick reply, see you on Monday."
+        #expect(try await toxic.perform().value == false)
     }
 
     @Test func photoActions() async throws {
@@ -424,5 +428,16 @@ private let modelTests = Testing.ConditionTrait.enabled(
         #expect(ids.firstIndex(of: "eye")! < ids.firstIndex(of: "if")!)
         #expect(ids.contains("if.if") && ids.contains("if.else"))
         #expect(!ids.contains { $0.hasSuffix(".each") || $0.hasSuffix(".together") })
+    }
+}
+
+@Suite(.serialized, modelTests) struct FaceTests {
+    @Test func groupsOnePersonAcrossPhotos() async throws {
+        let names = ["redhead-selfie-by-mural", "redhead-selfie-graffiti-wall", "redhead-with-phone-closeup", "man-bleached-hair-smiling-at-phone"]
+        let photos = try names.map { Value.image(try Media.photo(Samples.url("/samples/people/\($0).jpg"))) }
+        let out = try await ModelAction.run("face", ["photos": .list(photos)])
+        let people = out["people"]?.present ?? []
+        #expect(people.count == 1, "Face found \(people.count) people")
+        #expect(people.first?.present.count == 3)
     }
 }

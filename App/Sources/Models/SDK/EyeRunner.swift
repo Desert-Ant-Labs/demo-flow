@@ -10,11 +10,6 @@ final class EyeRunner: ModelRunner {
 
     func prepare(progress: @escaping @Sendable (Double) -> Void) async throws {
         try await eye.download(progress: progress)
-        // Core ML specializes the photo function on its first prediction, which
-        // takes most of a minute. Paying it here keeps it out of the first photo.
-        let gray = try ImagePixels(width: 64, height: 64, rgb: [UInt8](repeating: 128, count: 64 * 64 * 3))
-        let eye = eye
-        _ = try await serial.run { try await eye.analyze(gray) }
     }
 
     func analyze(_ image: CGImage) async throws -> PhotoReading {

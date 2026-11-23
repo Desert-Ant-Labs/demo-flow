@@ -2,7 +2,7 @@ import Foundation
 
 /// The models, with the copy from their brand cards.
 enum ModelID: String, CaseIterable, Identifiable, Sendable {
-    case voz, clear, ear, redact, gist, emo, tongue, shapes, moderator, eye, who, uhm, clips
+    case voz, clear, ear, redact, gist, emo, tongue, toxic, shapes, moderator, eye, face, who, uhm, clips
 
     var id: String { rawValue }
 
@@ -28,9 +28,11 @@ enum ModelID: String, CaseIterable, Identifiable, Sendable {
         case .gist: Info(name: "Gist", kind: "Content topic tagging", task: "Topics", about: "Names the topic of a text.", color: "stone", mb: 74)
         case .emo: Info(name: "Emo", kind: "Emoji suggestions", task: "Emoji", about: "Picks the emoji that fit a text.", color: "terracotta", mb: 11)
         case .tongue: Info(name: "Tongue", kind: "Language identification", task: "Text language", about: "Names the language a text is written in.", color: "ink", mb: 2)
+        case .toxic: Info(name: "Toxic", kind: "Hate speech triage", task: "Hate speech", about: "Flags hateful, abusive, and threatening text, in 35 languages.", color: "clay-red", mb: 103)
         case .shapes: Info(name: "Shapes", kind: "Shape recognition", task: "Sketch to shape", about: "Turns a rough stroke into the clean shape it was meant to be.", color: "sand", mb: 1.2)
         case .moderator: Info(name: "Moderator", kind: "Content moderation", task: "Image safety", about: "Checks whether a photo is safe to show.", color: "warm-grey", mb: 9)
         case .eye: Info(name: "Eye", kind: "Image scoring", task: "Photo understanding", about: "Reads a photo: what it shows, the people and faces in it, and whether it is worth keeping.", color: "slate", mb: 63)
+        case .face: Info(name: "Face", kind: "Face matching", task: "People in photos", about: "Finds the same person across your photos.", color: "forest", mb: 26)
         case .who: Info(name: "Who", kind: "Who said what", task: "Speaker labels", about: "Tells the voices in a recording apart, with when each one speaks.", color: "rosewood", mb: 84)
         case .uhm: Info(name: "Uhm", kind: "Filler-word detection", task: "Filler words", about: "Finds every uh, um, and hmm in a recording, with its time.", color: "sage", mb: 45)
         case .clips: Info(name: "Clips", kind: "Clip selection", task: "Highlight clips", about: "Picks the moments worth sharing from a talk, a podcast, or a meeting.", color: "dusty-pink", mb: 284)

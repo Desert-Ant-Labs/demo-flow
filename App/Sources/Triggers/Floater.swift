@@ -48,7 +48,7 @@ final class Floater {
     /// The height of one line of the pill, which the circle is centered on.
     static let row: CGFloat = 42
     /// Room around the drawing for its shadow.
-    static let margin: CGFloat = 16
+    static let margin: CGFloat = 24
 
     private init() {}
 
@@ -168,7 +168,6 @@ final class Floater {
             guard let self else { return }
             withAnimation(Self.spring) { self.offer = offer }
             setExpanded(true)
-            Task { await Task.yield(); self.layout() }
             offerTimeout()
         }
     }
@@ -226,7 +225,8 @@ final class Floater {
     private func setExpanded(_ value: Bool) {
         guard value != expanded else { return }
         withAnimation(Self.spring) { expanded = value }
-        Task { await Task.yield(); layout() }
+        // Grow before the pill draws; shrinking waits for it to fade.
+        if value { layout() }
     }
 
     static var spring: Animation? {
@@ -261,8 +261,8 @@ final class Floater {
 
     /// Sizes the panel to what it draws and puts the circle on its anchor,
     /// so the panel never takes a click meant for the window behind it.
-    private func layout() {
-        guard let panel, let content = panel.contentView else { return }
+    func layout() {
+        guard let panel, let content = panel.contentView?.subviews.first else { return }
         let anchor = self.anchor ?? Self.remembered() ?? Self.home()
         self.anchor = anchor
         let visible = Self.screen(at: anchor)?.visibleFrame
@@ -309,7 +309,13 @@ final class Floater {
         panel.becomesKeyOnlyIfNeeded = true
         // Glass follows the window's appearance; the floater is dark glass in both.
         panel.appearance = NSAppearance(named: .darkAqua)
-        panel.contentView = FirstClickHostingView(rootView: FloaterView(floater: self))
+        // A hosting view as content view resizes the window from its corner and moves the circle.
+        let content = FirstClickHostingView(rootView: FloaterView(floater: self))
+        content.sizingOptions = .intrinsicContentSize
+        content.autoresizingMask = [.width, .height]
+        let container = NSView()
+        container.addSubview(content)
+        panel.contentView = container
         return panel
     }
 
