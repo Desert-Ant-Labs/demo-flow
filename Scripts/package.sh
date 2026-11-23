@@ -154,7 +154,7 @@ fi
 
 # The appcast, signed with SPARKLE_KEY_COMMAND's key or the login keychain's.
 GENERATE_APPCAST=$(find build ~/Library/Developer/Xcode/DerivedData \
-    -path "*/sparkle/Sparkle/bin/generate_appcast" 2>/dev/null | head -1)
+    -path "*/sparkle/Sparkle/bin/generate_appcast" 2>/dev/null | head -1 || true)
 rm -f "$DIST_DIR/appcast.xml"
 if [ -n "$GENERATE_APPCAST" ] && [ -n "$SIGNING" ]; then
     echo "==> Writing the appcast"
