@@ -118,4 +118,4 @@ The SDKs declare names like `Label` and `Shape` that clash with SwiftUI's. Only 
 
 Flow's source is MIT. See [`LICENSE`](LICENSE).
 
-The models are licensed separately, under the [Desert Ant Labs Source-Available License 1.0](https://license.desertant.com/1.0). The sample photos and recordings have their own terms, which [`THIRD_PARTY_NOTICES.md`](THIRD_PARTY_NOTICES.md) lists with every other third-party license.
+The models are licensed separately, under the [Desert Ant Labs Source-Available License](https://license.desertant.com/). The sample photos and recordings have their own terms, which [`THIRD_PARTY_NOTICES.md`](THIRD_PARTY_NOTICES.md) lists with every other third-party license.

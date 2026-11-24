@@ -4,9 +4,9 @@ Flow's source code is MIT licensed (see [`LICENSE`](LICENSE)). Everything listed
 
 ## Desert Ant Labs models and SDKs
 
-The models and their SDKs are licensed under the Desert Ant Labs Source-Available License, Version 1.0. The full terms are at <https://license.desertant.com/1.0>, and in plain text at <https://license.desertant.com/1.0.txt>. Copyright © 2026 Desert Ant Labs B.V. `SPDX-License-Identifier: LicenseRef-DAL-Source-Available-1.0`
+The models and their SDKs are licensed under the Desert Ant Labs Source-Available License. The full terms are at <https://license.desertant.com/>, and in plain text at <https://license.desertant.com/latest.txt>. Copyright © 2026 Desert Ant Labs B.V. `SPDX-License-Identifier: LicenseRef-DAL-Source-Available`
 
-The license is free below 100,000 monthly active devices per platform, for each model. Above that, you need a commercial license from <licensing@desertant.com>. You can embed the models in your app. You can't use the models, their outputs, or their logs to train a competing on-device model. Apps that ship the models credit Desert Ant Labs, as the [attribution guide](https://license.desertant.com/attribution) describes.
+The models are free for most apps, and a commercial license from <licensing@desertant.com> is required at scale. You can embed the models in your app. You can't use the models, their outputs, or their logs to train a competing on-device model. Apps that ship the models credit Desert Ant Labs, as the [attribution guide](https://license.desertant.com/attribution) describes.
 
 | Package | What Flow uses it for |
 |---|---|

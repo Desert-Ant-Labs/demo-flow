@@ -26,4 +26,4 @@ The "Desert Ant Labs" name and the Desert Ant Labs mark are trademarks of
 Desert Ant Labs B.V. This license covers the code only; it does not grant
 rights to the name or the mark beyond using them to credit Desert Ant Labs,
 as the model license asks (https://license.desertant.com/attribution).
-The Desert Ant models are licensed separately: https://license.desertant.com/1.0.
+The Desert Ant models are licensed separately: https://license.desertant.com/.
